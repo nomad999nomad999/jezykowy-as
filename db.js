@@ -559,17 +559,12 @@ const DB = {
         { type: "match_pairs",     desc: "Ukończ Dopasuj pary",                               target: 1,   xp: 55,  icon: "🔗" },
         { type: "super_quiz",      desc: "Ukończ Super-Quiz",                                 target: 1,   xp: 80,  icon: "🏆" },
         { type: "srs",             desc: "Ukończ powtórkę SRS",                               target: 1,   xp: 65,  icon: "🧠" },
-        { type: "flashcards",      desc: "Ćwicz Fiszki (min. 10 słów)",                       target: 10,  xp: 50,  icon: "🃏" },
         { type: "fill_blank",      desc: "Ukończ Test pisowni",                               target: 1,   xp: 65,  icon: "✍️" },
         { type: "promote_words",   desc: "Przenieś 3 słowa do listy \"Poznałem\"",            target: 3,   xp: 100, icon: "🎓" },
-        { type: "combo_trio",      desc: "Ukończ Super-Quiz, Dopasuj pary i Speed Round",     target: 3,   xp: 150, icon: "🔥" },
-        { type: "multiple_choice", desc: "Ukończ Wybór wielokrotny",                          target: 1,   xp: 55,  icon: "🎯" },
         { type: "quick_challenge", desc: "Ukończ Szybkie Wyzwanie",                          target: 1,   xp: 60,  icon: "⏱️" },
         { type: "daily_fact",      desc: "Ukończ Ciekawostkę Dnia",                           target: 1,   xp: 70,  icon: "🧪" },
         { type: "sentence_builder", desc: "Ukończ Budowanie zdań",                            target: 1,   xp: 60,  icon: "🔤" },
-        { type: "hands_free",      desc: "Ukończ Audionaukę",                                 target: 1,   xp: 50,  icon: "🎧" },
-        { type: "context",         desc: "Ukończ Wyzwanie Kontekstu",                         target: 1,   xp: 60,  icon: "🧩" },
-        { type: "audio_quiz",      desc: "Ukończ Audio Quiz",                                 target: 1,   xp: 60,  icon: "🔊" }
+        { type: "hands_free",      desc: "Ukończ Audionaukę",                                 target: 1,   xp: 50,  icon: "🎧" }
       ];
 
       // Przetasuj pulę rotacyjną używając seeda (LCG)
