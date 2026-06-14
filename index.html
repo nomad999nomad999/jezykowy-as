@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0f0f1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Językowy AS</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash" class="splash">
+  <div class="splash-logo">🃏</div>
+  <h1 class="splash-title">Językowy AS</h1>
+  <p class="splash-sub" style="color:#818cf8;font-weight:600">by Adi</p>
+  <p class="splash-sub" style="margin-top:4px">Inteligentna nauka angielskiego</p>
+  <div class="spinner" style="margin-top:16px"></div>
+</div>
+
+<!-- ACCOUNT PICKER -->
+<div id="accountPickerScreen" class="login-screen hidden">
+  <div class="picker-card">
+    <div class="login-logo">🃏</div>
+    <h1 class="login-title">Językowy AS</h1>
+    <p class="picker-subtitle" style="color:#818cf8;font-size:12px;margin-bottom:4px">by Adi &nbsp;•&nbsp; Ucz się jak mistrz!</p>
+    <p class="picker-subtitle">Wybierz konto</p>
+    <div id="accountGrid" class="account-grid"></div>
+    <div id="newAccountForm" class="hidden" style="margin-top:16px">
+      <input id="newAccountName" class="login-input" type="text" placeholder="Wpisz imię…" maxlength="20">
+      <div id="newAccountError" class="login-error hidden"></div>
+      <button class="btn btn-primary" onclick="Auth.createAccount()">Utwórz konto</button>
+      <button class="btn btn-outline" style="margin-top:6px" onclick="document.getElementById('newAccountForm').classList.add('hidden')">Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app hidden">
+  <header class="header">
+    <div class="header-left">
+      <span class="streak-badge" id="streakBadge">🔥 0</span>
+    </div>
+    <h1 class="header-title" id="pageTitle">Językowy AS</h1>
+    <div class="header-right" id="xpBadge" style="display:flex;align-items:center;gap:8px">
+      <span class="xp-badge" id="xpDisplay">0 XP</span>
+      <button class="icon-btn" onclick="UI.openSettings()" title="Ustawienia" style="font-size:16px">⚙️</button>
+      <button class="icon-btn" onclick="Auth.logout()" title="Wyloguj">👤</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- COCA Onboarding Modal -->
+    <div id="cocaOnboarding" class="onboarding-overlay hidden">
+      <div class="onboarding-card">
+        <div class="onboarding-logo">📚</div>
+        <h2 class="onboarding-title">Uczysz się najważniejszych słów!</h2>
+        <p class="onboarding-sub">Zanim zaczniesz — kilka słów o tym, <strong>skąd pochodzi lista słów</strong> i dlaczego możesz jej ufać.</p>
+
+        <div class="onboarding-steps">
+          <div class="onboarding-step">
+            <div class="ostep-icon">🏛️</div>
+            <div>
+              <div class="ostep-title">COCA — naukowy standard</div>
+              <div class="ostep-desc">Lista pochodzi z <strong>Corpus of Contemporary American English</strong> — największego korpusu języka angielskiego (ponad 1 miliard słów z TV, gazet, rozmów, internetu, filmów).</div>
+            </div>
+          </div>
+          <div class="onboarding-step">
+            <div class="ostep-icon">📊</div>
+            <div>
+              <div class="ostep-title">Ranking częstotliwości</div>
+              <div class="ostep-desc">Słowa są posortowane od <strong>najczęściej używanych</strong>. Słowo #1 to „the", #50 to „make", #200 to „great". Uczysz się od góry — słowa które usłyszysz <em>wszędzie</em>.</div>
+            </div>
+          </div>
+          <div class="onboarding-step">
+            <div class="ostep-icon">🎯</div>
+            <div>
+              <div class="ostep-title">Znajomość 1000 słów = 85% rozmów</div>
+              <div class="ostep-desc">Badania lingwistyczne pokazują że <strong>top 1000 słów COCA</strong> pokrywa ponad 85% codziennego języka angielskiego. Top 3000 to już 95%.</div>
+            </div>
+          </div>
+          <div class="onboarding-step">
+            <div class="ostep-icon">⏭️</div>
+            <div>
+              <div class="ostep-title">Masz kontrolę</div>
+              <div class="ostep-desc">Każde słowo ma widoczny numer rangi (np. <strong>#430</strong>). Jeśli słowo nie pasuje — kliknij <em>Pomiń</em> i nie wróci.</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary onboarding-btn" onclick="Classify.closeOnboarding()">
+          Rozumiem — zaczynamy! 🚀
+        </button>
+        <p class="onboarding-note">Używany przez Oxford, Cambridge i Duolingo</p>
+      </div>
+    </div>
+
+    <!-- HOME DASHBOARD -->
+    <section id="page-home" class="page active">
+
+      <!-- Greeting + streak + XP mini bar -->
+      <div class="home-hero-compact">
+        <div class="hh-top">
+          <div class="hh-greet-text">
+            <span class="hh-hello">Cześć, <strong id="homeUsername">…</strong>! 👋</span>
+            <div id="adiGreeting" style="font-size:12px;color:var(--text3);margin-top:2px">Gotowy na naukę?</div>
+          </div>
+          <div class="home-streak-pill" style="margin:0">🔥 <span id="homeStreak">0</span> dni</div>
+        </div>
+        <div class="hh-xp-section">
+          <div class="hh-xp-info">
+            <span id="homeLvl" class="badge-level">Beginner</span>
+            <span id="homeXP" class="badge-xp">0 XP</span>
+          </div>
+          <div class="home-xp-track"><div class="home-xp-fill" id="homeXpFill"></div></div>
+        </div>
+        <div class="adi-msg" id="adiHomeMsg" style="margin-top:10px">🃏 <em>Adi jest ciekawy ile nauczysz się dzisiaj!</em></div>
+      </div>
+
+      <!-- Karta Supermocy (Wykres kołowy + Poziom) -->
+      <div class="home-card superpower-progress-card" onclick="Home.openSuperpowerModal()" style="cursor: pointer;" title="Kliknij, aby zobaczyć szczegóły supermocy">
+        <div class="sp-layout">
+          <div class="vocab-ring-wrap large">
+            <svg class="vocab-ring" viewBox="0 0 36 36">
+              <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path class="ring-fill sp-ring" id="ringProgressFill" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            </svg>
+            <div class="ring-text large" id="ringProgressText">0%</div>
+          </div>
+          <div class="sp-info">
+            <div class="sp-badge">BIEŻĄCY POZIOM (kliknij, aby sprawdzić 🔍)</div>
+            <div class="sp-rank" id="spRank">Początkujący</div>
+            <div class="sp-power" id="spPower">Sklasyfikuj pierwsze słowa, aby odblokować supermoc!</div>
+            <div class="sp-next-milestone" id="spNextMilestone">Następny cel: Odkrywca (0/100 słów)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Duolingo Call to Action -->
+      <div class="main-action-card" id="mainActionCard" onclick="Home.startNextAction()">
+        <div class="mac-content">
+          <div class="mac-title" id="macTitle">Rozpocznij naukę 🚀</div>
+          <div class="mac-subtitle" id="macSubtitle">Poznaj nowe słowa z bazy 3000 słów COCA</div>
+          <div class="mac-progress-info" id="macProgressInfo">Sklasyfikowano: 0% bazy</div>
+        </div>
+        <div class="mac-play-btn">▶</div>
+      </div>
+
+      <!-- Misje Dzienne -->
+      <div class="stats-section-card" id="homeQuestsSection">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 class="stats-section-title" style="margin:0">🎯 Misje Dzienne</h3>
+          <span id="homeQuestsBadge" style="font-size:12px;color:var(--text3)">Resetują się o północy</span>
+        </div>
+        <div id="homeQuestsList">
+          <p style="text-align:center;color:var(--text3);font-size:13px">Ładowanie misji…</p>
+        </div>
+      </div>
+
+      <!-- Mój słownik + zadowolenie Adiego -->
+      <div class="home-card visual-progress-card">
+        <div class="home-card-hdr">
+          <span class="home-card-title">📊 Twój postęp słownika</span>
+          <span class="home-card-badge" id="homeTotalWords">0 sklasyfikowanych</span>
+        </div>
+        
+        <div class="progress-columns-container">
+          <div class="progress-column-wrapper">
+            <div class="progress-column col-znam" id="colZnam" style="height: 0%">
+              <span class="col-value" id="valZnam">0</span>
+            </div>
+            <span class="col-label">✅ Znam</span>
+          </div>
+          
+          <div class="progress-column-wrapper">
+            <div class="progress-column col-troche" id="colTroche" style="height: 0%">
+              <span class="col-value" id="valTroche">0</span>
+            </div>
+            <span class="col-label">⚠️ Trochę</span>
+          </div>
+          
+          <div class="progress-column-wrapper">
+            <div class="progress-column col-nie" id="colNie" style="height: 0%">
+              <span class="col-value" id="valNie">0</span>
+            </div>
+            <span class="col-label">❌ Nie znam</span>
+          </div>
+        </div>
+        
+        <!-- Adi satisfaction -->
+        <div class="adi-satisfaction" id="adiSatisfaction" style="margin-top: 16px;">
+          <span class="adi-sat-emoji" id="adiSatEmoji">🃏</span>
+          <div class="adi-sat-body">
+            <div class="adi-sat-title" id="adiSatTitle">Adi ocenia dzisiejszą pracę…</div>
+            <div class="adi-sat-sub" id="adiSatSub">Zacznij klasyfikować słowa!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Szybki start -->
+      <div class="home-card">
+        <div class="home-card-hdr"><span class="home-card-title">⚡ Szybki start</span></div>
+        <div class="home-quick-grid">
+          <button class="home-quick-btn" onclick="UI.goTo('classify')">
+            <span class="hq-icon">📖</span><span class="hq-label">Nowe słowa</span>
+          </button>
+          <button class="home-quick-btn" onclick="Exercise.start('super_quiz')">
+            <span class="hq-icon">🏆</span><span class="hq-label">Super-Quiz</span>
+          </button>
+          <button class="home-quick-btn" onclick="Exercise.start('srs')">
+            <span class="hq-icon">🧠</span><span class="hq-label">Powtórka <span id="homeSRSCount" class="hq-badge hidden"></span></span>
+          </button>
+          <button class="home-quick-btn" onclick="Exercise.start('speed_round')">
+            <span class="hq-icon">⚡</span><span class="hq-label">Speed Round</span>
+          </button>
+          <button class="home-quick-btn" onclick="Exercise.start('quick_challenge')" style="grid-column: span 2; background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(245, 158, 11, 0.15)); border-color: rgba(239, 68, 68, 0.4);">
+            <span class="hq-icon">⏱️</span><span class="hq-label" style="font-weight:900">Szybkie Wyzwanie (Arcade)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- COCA Supermoc Info -->
+      <div class="home-card">
+        <div class="home-card-hdr" onclick="Home.toggleLevels()" style="cursor:pointer">
+          <span class="home-card-title">🚀 Twoja Supermoc</span>
+          <span id="homeLevelToggle" style="color:var(--text3);font-size:13px">▼ rozwiń</span>
+        </div>
+        <div id="homeLevels" class="home-levels hidden"></div>
+      </div>
+
+    </section>
+
+    <!-- classify -->
+    <section id="page-classify" class="page">
+      <div id="classifyProgress" class="progress-bar-wrap"><div id="classifyProgressBar" class="progress-bar-fill"></div></div>
+      <div id="classifyInfo" class="classify-info"></div>
+      <div id="classifyCards" class="classify-cards"></div>
+      <div id="classifyDone" class="classify-done hidden">
+        <div class="done-icon">🎉</div><h2>Brawo!</h2>
+        <p>Wszystkie dostępne słowa sklasyfikowane.</p>
+        <button class="btn btn-primary" onclick="Classify.load()">Odśwież</button>
+      </div>
+    </section>
+
+
+    <!-- lists -->
+    <section id="page-lists" class="page">
+      <div class="tabs" style="flex-wrap:wrap;gap:4px">
+        <button class="tab active" onclick="Lists.switch(this,'NIE_ZNAM')">❌ Nie znam</button>
+        <button class="tab" onclick="Lists.switch(this,'TROCHE')">⚠️ Trochę</button>
+        <button class="tab" onclick="Lists.switch(this,'ZNAM')">✅ Znam</button>
+        <button class="tab tab-learned" id="tabLearned" onclick="Lists.showLearned(this)">🎓 Poznałem <span id="learnedCount" class="learned-badge">…</span></button>
+      </div>
+      <div class="search-wrap"><input id="searchInput" class="search-input" type="text" placeholder="🔍 Szukaj słowa…" oninput="Lists.search(this.value)"></div>
+      <div id="wordsList" class="words-list"></div>
+    </section>
+
+
+    <!-- exercises -->
+    <section id="page-exercises" class="page">
+      <h2 class="ex-heading">Wybierz ćwiczenie</h2>
+      <div class="ex-grid">
+        <button class="ex-card ex-card-handsfree" style="grid-column: span 2; background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(236, 72, 153, 0.12)); border-color: rgba(139, 92, 246, 0.3);" onclick="Exercise.start('hands_free')">
+          <span class="ex-icon">🎧</span>
+          <span class="ex-name">Audionauka (Tryb Auta)</span>
+          <span class="ex-desc">Bezdotykowa nauka ze słuchu z wymową PL i EN</span>
+          <span class="ex-xp">+2 XP/słowo</span>
+        </button>
+        <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.12)); border-color: rgba(16, 185, 129, 0.3);" onclick="Exercise.start('super_quiz')">
+          <span class="ex-icon">🏆</span>
+          <span class="ex-name">Super-Quiz</span>
+          <span class="ex-desc">Połączone Fiszki + Wybór + Audio (ABCD)</span>
+          <span class="ex-xp">+5 XP/słowo</span>
+        </button>
+        <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(245, 158, 11, 0.12)); border-color: rgba(239, 68, 68, 0.3);" onclick="Exercise.start('quick_challenge')">
+          <span class="ex-icon">⏱️</span>
+          <span class="ex-name">Szybkie Wyzwanie (Arcade)</span>
+          <span class="ex-desc">Przetrwaj jak najdłużej! Poprawna (+3s), Błąd (-5s)</span>
+          <span class="ex-xp">+5 XP/słowo</span>
+        </button>
+        <button class="ex-card" onclick="Exercise.start('fill_blank')"><span class="ex-icon">✍️</span><span class="ex-name">Test pisowni</span><span class="ex-desc">Wpisz słowo</span><span class="ex-xp">+6 XP/słowo</span></button>
+        <button class="ex-card" onclick="Exercise.start('match_pairs')"><span class="ex-icon">🔗</span><span class="ex-name">Dopasuj pary</span><span class="ex-desc">PL ↔ EN</span><span class="ex-xp">+4 XP/słowo</span></button>
+        <button class="ex-card" onclick="Exercise.start('speed_round')"><span class="ex-icon">⚡</span><span class="ex-name">Speed Round</span><span class="ex-desc">60 sekund!</span><span class="ex-xp">+5 XP/słowo</span></button>
+        <button class="ex-card ex-card-srs" onclick="Exercise.start('srs')" id="srsBtn"><span class="ex-icon">🧠</span><span class="ex-name">Powtórka SRS</span><span class="ex-desc" id="srsDesc">SM-2 algorytm</span><span class="ex-xp">+3-5 XP</span></button>
+        <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.12)); border-color: rgba(99,102,241,0.35);" onclick="Exercise.start('sentence_builder')">
+          <span class="ex-icon">🔤</span>
+          <span class="ex-name">Budowanie zdań</span>
+          <span class="ex-desc">Ułóż zdanie z rozsypanych słów (AI)</span>
+          <span class="ex-xp">+5 XP/zdanie</span>
+        </button>
+        <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(6,182,212,0.12)); border-color: rgba(16,185,129,0.35);" onclick="Exercise.start('daily_fact')">
+          <span class="ex-icon">🧪</span>
+          <span class="ex-name">Ciekawostka Dnia</span>
+          <span class="ex-desc">Czytaj, poznaj słówka w kontekcie, odpowiedz na T/F</span>
+          <span class="ex-xp">+6-26 XP/sesja</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- TUTORIAL OVERLAY -->
+    <div id="tutorialOverlay" class="tutorial-overlay hidden">
+      <div class="tutorial-card">
+        <div class="tutorial-steps-wrap" id="tutStepsWrap">
+
+          <div class="tut-step active" data-step="0">
+            <div class="tut-emoji">👋</div>
+            <h2 class="tut-title">Witaj w Językowym Asie!</h2>
+            <p class="tut-body">Nauczysz się najważniejszych angielskich słów metodą potwierdzoną przez naukę — zaczynając od słów, które słyszysz <strong>w każdej rozmowie</strong>.</p>
+          </div>
+
+          <div class="tut-step" data-step="1">
+            <div class="tut-emoji">📖</div>
+            <h2 class="tut-title">Krok 1: Klasyfikuj słowa</h2>
+            <p class="tut-body">W zakładce <strong>Nowe</strong> zobaczysz słowa z listy COCA — od najczęstszych. Powiedz nam czy je znasz: ✅ Znam / ⚠️ Trochę / ❌ Nie znam.</p>
+          </div>
+
+          <div class="tut-step" data-step="2">
+            <div class="tut-emoji">💪</div>
+            <h2 class="tut-title">Krok 2: Ćwicz codziennie</h2>
+            <p class="tut-body">Zakładka <strong>Ćwiczenia</strong> oferuje 8 trybów: Fiszki, Quiz, Audio, Speed Round i więcej. Każde ćwiczenie daje XP i wspiera zapamiętywanie.</p>
+          </div>
+
+          <div class="tut-step" data-step="3">
+            <div class="tut-emoji">🧠</div>
+            <h2 class="tut-title">Krok 3: Powtórka SRS</h2>
+            <p class="tut-body"><strong>Spaced Repetition</strong> (SM-2) to naukowo udowodniona metoda. Słowo wraca do powtórki dokładnie wtedy, gdy masz je zapomnieć — maksymalizując zapamiętywanie przy minimalnym wysiłku.</p>
+          </div>
+
+          <div class="tut-step" data-step="4">
+            <div class="tut-emoji">🏆</div>
+            <h2 class="tut-title">Zdobywaj odznaki!</h2>
+            <p class="tut-body">Zbieraj odznaki, utrzymuj serie dni, wykonuj misje dzienne i śledź swój postęp. Adi będzie obserwował każdy Twój sukces!</p>
+          </div>
+
+          <div class="tut-step" data-step="5">
+            <div class="tut-emoji">🚀</div>
+            <h2 class="tut-title">Twoje Supermoc!</h2>
+            <p class="tut-body" style="margin-bottom:12px">Każde nauczone słowo to nowa umiejętność. Oto co zyskujesz:</p>
+            <div class="tut-levels">
+              <div class="tl-row">🟩 <strong>100 słów</strong> → Przeżyjesz na lotnisku i w hotelu</div>
+              <div class="tl-row">🟩 <strong>500 słów</strong> → Rezerwujesz hotel przez telefon</div>
+              <div class="tl-row">🟨 <strong>1 000 słów</strong> → 80% codziennych rozmów — Przełom B1!</div>
+              <div class="tl-row">🟦 <strong>1 500 słów</strong> → Płynna dyskusja, bez tłumaczenia w głowie</div>
+              <div class="tl-row">🟦 <strong>2 000 słów</strong> → Praca i negocjacje po angielsku</div>
+              <div class="tl-row">🟥 <strong>3 000 słów</strong> → 95% tekstów — Elita językowa!</div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="tutorial-nav">
+          <div class="tut-dots" id="tutDots">
+            <span class="tut-dot active" onclick="Home.tutGoTo(0)"></span>
+            <span class="tut-dot" onclick="Home.tutGoTo(1)"></span>
+            <span class="tut-dot" onclick="Home.tutGoTo(2)"></span>
+            <span class="tut-dot" onclick="Home.tutGoTo(3)"></span>
+            <span class="tut-dot" onclick="Home.tutGoTo(4)"></span>
+            <span class="tut-dot" onclick="Home.tutGoTo(5)"></span>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button class="btn btn-outline" id="tutPrev" onclick="Home.tutNav(-1)" style="display:none">← Wstecz</button>
+            <button class="btn btn-primary" id="tutNext" onclick="Home.tutNav(1)">Dalej →</button>
+          </div>
+          <button class="tut-skip" onclick="Home.tutDone()">Pomiń samouczek</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- stats -->
+    <section id="page-stats" class="page">
+      <div class="stats-hero">
+        <div class="cefr-badge" id="cefrBadge">B2</div>
+        <p class="cefr-label">Szacowany poziom CEFR</p>
+        <div class="level-badge" id="levelBadge">Learner 🥈</div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card green"><span class="stat-num" id="stZnam">0</span><span class="stat-label">✅ Znam</span></div>
+        <div class="stat-card yellow"><span class="stat-num" id="stTroche">0</span><span class="stat-label">⚠️ Trochę</span></div>
+        <div class="stat-card red"><span class="stat-num" id="stNie">0</span><span class="stat-label">❌ Nie znam</span></div>
+        <div class="stat-card blue"><span class="stat-num" id="stXP">0</span><span class="stat-label">⭐ XP</span></div>
+      </div>
+      <div class="progress-section">
+        <p class="progress-label">Postęp COCA</p>
+        <div class="progress-bar-wrap big"><div id="cocaBar" class="progress-bar-fill"></div></div>
+        <p id="cocaLabel" class="progress-pct">0 / 0</p>
+      </div>
+
+      <!-- Wykres znajomości słownika -->
+      <div class="stats-section-card" id="vocabChartSection">
+        <h3 class="stats-section-title">📊 Znajomość słownika COCA</h3>
+        <p style="color:var(--text3);font-size:12px;margin-bottom:12px">Ile słów z każdego poziomu częstotliwości znasz?</p>
+        <div id="vocabChart">
+          <p style="text-align:center;color:var(--text3);font-size:13px">Ładowanie…</p>
+        </div>
+      </div>
+
+      <div class="streak-section">
+        <div class="streak-big">🔥 <span id="stStreak">0</span> dni z rzędu</div>
+        <p id="stLongest" class="streak-best"></p>
+      </div>
+
+      <!-- Misje Dzienne -->
+      <div class="stats-section-card" id="questsSection">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 class="stats-section-title" style="margin:0">🎯 Misje Dzienne</h3>
+          <span id="questsBadge" style="font-size:12px;color:var(--text3)">Resetują się o północy</span>
+        </div>
+        <div id="questsList">
+          <p style="text-align:center;color:var(--text3);font-size:13px">Ładowanie misji…</p>
+        </div>
+      </div>
+
+      <!-- Historia aktywności -->
+      <div class="stats-section-card">
+        <h3 class="stats-section-title">📅 Aktywność (14 dni)</h3>
+        <div id="activityHistory" class="activity-history">
+          <p style="text-align:center;color:var(--text3);font-size:13px">Ładowanie…</p>
+        </div>
+      </div>
+
+      <!-- Awanse słów -->
+      <div class="stats-section-card">
+        <h3 class="stats-section-title">📈 Awanse słów</h3>
+        <div id="promotionTotals" class="promo-totals"></div>
+        <div id="promotionFeed" class="promo-feed"></div>
+      </div>
+
+      <!-- Dokładność per ćwiczenie -->
+      <div class="stats-section-card">
+        <h3 class="stats-section-title">🎯 Dokładność per ćwiczenie</h3>
+        <div id="exerciseStats">
+          <p style="color:var(--text3);font-size:13px;text-align:center">Ładowanie…</p>
+        </div>
+      </div>
+
+      <!-- Najtrudniejsze słowa -->
+      <div class="stats-section-card">
+        <h3 class="stats-section-title">💀 Najtrudniejsze słowa</h3>
+        <div id="hardestWords">
+          <p style="color:var(--text3);font-size:13px;text-align:center">Ładowanie…</p>
+        </div>
+      </div>
+
+      <!-- Słowa do powtórki -->
+      <div class="stats-section-card">
+        <h3 class="stats-section-title">🔄 Wymagają powtórki</h3>
+        <p style="color:var(--text3);font-size:11px;margin-bottom:8px">Słowa z dokładnością poniżej 60% (min. 2 próby)</p>
+        <div id="reviewWords">
+          <p style="color:var(--text3);font-size:13px;text-align:center">Ładowanie…</p>
+        </div>
+      </div>
+
+      <!-- Kopia zapasowa -->
+      <div class="stats-section-card">
+        <h3 class="stats-section-title" style="margin-bottom: 6px;">💾 Kopia zapasowa</h3>
+        <p style="color:var(--text3);font-size:12px;margin-bottom:12px">Pobierz swoje postępy do pliku lub wczytaj je z pliku kopii.</p>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="Backup.export()" style="flex:1;width:auto;padding:10px;font-size:13px">📥 Pobierz kopię</button>
+          <button class="btn btn-outline" onclick="document.getElementById('backupInput').click()" style="flex:1;width:auto;padding:10px;font-size:13px">📤 Wczytaj kopię</button>
+          <input type="file" id="backupInput" style="display:none" accept=".json" onchange="Backup.import(event)">
+        </div>
+      </div>
+
+      <!-- Ranking -->
+      <div class="leaderboard-section">
+        <h3 class="lb-title">🏆 Ranking</h3>
+        <div id="leaderboard" class="leaderboard"></div>
+      </div>
+
+      <!-- Odznaki -->
+      <div class="stats-section-card" style="margin-top: 14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 class="stats-section-title" style="margin:0">🏅 Odznaki</h3>
+          <span id="badgesEarned" style="font-size:12px;color:var(--text3)">Ładowanie…</span>
+        </div>
+        <div id="badgesGrid" class="badges-grid">
+          <p style="text-align:center;color:var(--text3);font-size:13px">Ładowanie…</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="UI.goTo('home')"><span class="nav-icon">🏠</span><span class="nav-label">Główna</span></button>
+    <button class="nav-btn" id="nav-classify" onclick="UI.goTo('classify')"><span class="nav-icon">📖</span><span class="nav-label">Nowe</span></button>
+    <button class="nav-btn" id="nav-exercises" onclick="UI.goTo('exercises')"><span class="nav-icon">🏋️</span><span class="nav-label">Ćwiczenia</span></button>
+    <button class="nav-btn" id="nav-lists" onclick="UI.goTo('lists')"><span class="nav-icon">📋</span><span class="nav-label">Listy</span></button>
+    <button class="nav-btn" id="nav-stats" onclick="UI.goTo('stats')"><span class="nav-icon">📊</span><span class="nav-label">Postęp</span></button>
+  </nav>
+</div>
+
+<!-- XP POPUP -->
+<div id="xpPopup" class="xp-popup hidden"></div>
+
+<!-- EXERCISE MODAL -->
+<div id="exerciseModal" class="modal hidden">
+  <div class="modal-header">
+    <button class="modal-close" onclick="Exercise.close()">✕</button>
+    <h2 id="modalTitle" class="modal-title"></h2>
+    <div id="modalScore" class="modal-score"></div>
+  </div>
+  <div id="modalBody" class="modal-body"></div>
+</div>
+
+<!-- WORD DETAIL MODAL -->
+<div id="wordModal" class="modal hidden">
+  <div class="modal-header">
+    <button class="modal-close" onclick="WordModal.close()">✕</button>
+    <h2 id="wmWord" class="modal-title"></h2>
+  </div>
+  <div class="modal-body">
+    <p id="wmTranslation" class="wm-translation"></p>
+    <div id="wmSentence" class="wm-sentence"></div>
+    <div class="wm-actions">
+      <button class="btn btn-green" onclick="WordModal.setStatus('ZNAM')">✅ Znam</button>
+      <button class="btn btn-yellow" onclick="WordModal.setStatus('TROCHE')">⚠️ Trochę</button>
+      <button class="btn btn-red" onclick="WordModal.setStatus('NIE_ZNAM')">❌ Nie znam</button>
+    </div>
+    <button class="btn btn-outline" onclick="WordModal.speak()" style="margin-top:8px;width:100%">🔊 Wymowa</button>
+    <button class="btn" onclick="WordModal.deleteWord()" style="margin-top:8px;width:100%;background-color:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)">🗑️ Usuń z moich list (resetuj)</button>
+  </div>
+</div>
+
+<!-- SUPERPOWER DETAILS MODAL -->
+<div id="superpowerModal" class="modal hidden">
+  <div class="modal-header">
+    <button class="modal-close" onclick="Home.closeSuperpowerModal()">✕</button>
+    <h2 class="modal-title">🏆 Kamienie milowe i Supermoce</h2>
+  </div>
+  <div class="modal-body" style="padding-top:10px">
+    <p style="color:var(--text2);font-size:14px;line-height:1.5;margin-bottom:16px">
+      Twoja <strong>Supermoc</strong> rośnie wraz z liczbą słów przeniesionych do listy <strong>"Znam"</strong>. 
+      Każdy próg (kamień milowy) to realny wzrost Twoich umiejętności komunikacyjnych:
+    </p>
+    <div class="superpowers-scheme-list" id="superpowersSchemeList"></div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal hidden">
+  <div class="modal-header">
+    <button class="modal-close" onclick="UI.closeSettings()">✕</button>
+    <h2 class="modal-title">⚙️ Ustawienia aplikacji</h2>
+  </div>
+  <div class="modal-body" style="padding-top:10px">
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;background:rgba(255,255,255,0.02);padding:12px;border-radius:8px;border:1px solid var(--border)">
+        <input type="checkbox" id="settingsGeminiEnabled" style="width:20px;height:20px;cursor:pointer">
+        <label for="settingsGeminiEnabled" style="font-size:13px;font-weight:600;color:var(--text1);cursor:pointer">Włącz generowanie zdań przez AI</label>
+      </div>
+      
+      <div id="settingsGeminiKeySection">
+        <label style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;display:block;margin-bottom:8px">Klucz API Gemini (opcjonalny)</label>
+        <p style="color:var(--text3);font-size:13px;line-height:1.4;margin-bottom:12px">
+          Wklej swój klucz API Gemini, aby generować unikalne zdania bezpośrednio w przeglądarce. Bez klucza aplikacja może odpytywać serwer lokalny lub korzystać z gotowych zdań offline.
+        </p>
+        <input id="settingsGeminiKey" class="login-input" type="password" placeholder="Wklej klucz API (AIzaSy...)" style="margin-bottom:16px">
+      </div>
+      
+      <button class="btn btn-primary" onclick="UI.saveSettings()" style="width:100%;background:linear-gradient(135deg, var(--green), #06b6d4)">Zapisz ustawienia 💾</button>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;font-size:12px;color:var(--text3)">
+      Ustawienia są zapisywane lokalnie w pamięci Twojej przeglądarki.
+    </div>
+  </div>
+</div>
+<script src="dexie.min.js"></script>
+<script src="db.js"></script>
+<script src="auth.js"></script>
+<script src="ui.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
