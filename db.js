@@ -533,7 +533,11 @@ const DB = {
 
   // Generowanie misji dziennych z daty
   async ensureDailyQuests(userId, todayStr) {
-    const existing = await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).toArray();
+    let existing = await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).toArray();
+    if (existing.length > 0 && existing.length < 5) {
+      await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).delete();
+      existing = [];
+    }
     if (existing.length === 0) {
       const seed = this.getStringSeed(todayStr + String(userId));
 
