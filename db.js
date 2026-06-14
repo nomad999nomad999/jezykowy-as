@@ -198,6 +198,91 @@ Example: {"sentence": "I have no _____ about his honesty.", "answer": "doubt", "
   throw lastError || new Error("All models failed");
 }
 
+async function fetchDirectGeminiDailyFact(category, userWords, apiKey) {
+  const cats = {
+    biology: ["Biology", "Biologia"],
+    evolutionary_biology: ["Evolutionary Biology", "Biologia ewolucyjna"],
+    nature: ["Nature", "Przyroda"],
+    physics: ["Physics", "Fizyka"],
+    technology: ["Technology", "Technika"]
+  };
+  const [catEn, catPl] = cats[category] || ["Biology", "Biologia"];
+  const wordsStr = userWords.slice(0, 15).map(w => `"${w.word}" (${w.translation || '?'})`).join(", ");
+
+  const prompt = `You are creating educational English content for a Polish speaker learning English.
+
+Category: ${catEn} (${catPl})
+User's vocabulary to practice (pick 3-5 and use them naturally): ${wordsStr}
+
+CRITICAL RULE: You MUST ONLY select target words to practice from the "User's vocabulary to practice" list above. Do NOT highlight (**word**) or include in "used_words" any words that are not present in the provided list. If the list is empty, then you can use common words, but if it has words, use ONLY those words.
+
+Return ONLY valid JSON (no markdown):
+{
+  "title": "Specific topic title (4-6 English words)",
+  "fact": "3-4 sentences (80-130 words). B1-B2 English level. Use 3-5 target words from the list naturally. Mark each used target word with **double asterisks** like **word**.",
+  "used_words": [
+    {"word": "used_word", "translation": "polskie tlumaczenie", "context": "short phrase using it"}
+  ],
+  "questions": [
+    {"statement": "One-sentence T/F statement about the fact only.", "answer": true, "explanation": "Krotkie wyjasnienie po polsku."},
+    {"statement": "Another statement.", "answer": false, "explanation": "Wyjasnienie."},
+    {"statement": "Third statement.", "answer": true, "explanation": "Wyjasnienie."}
+  ]
+}
+
+Rules:
+- Exactly 3 questions, mix of true/false (not all same answer)
+- Questions answerable ONLY from the fact text
+- Fact must be genuinely interesting and accurate
+- Explanations in Polish`;
+
+  const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
+  let lastError = null;
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+
+        if (response.status === 429) {
+          console.warn(`Gemini ${model} rate limit (429), trying next model...`);
+          lastError = new Error("Rate limit 429");
+          break;
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("Empty Gemini response");
+
+        let raw = text.trim();
+        const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
+        if (s !== -1 && e !== -1) raw = raw.substring(s, e + 1);
+        const parsed = JSON.parse(raw);
+        if (!parsed.fact || !parsed.questions || parsed.questions.length < 3) {
+          throw new Error("Missing fact or questions in response");
+        }
+        return parsed;
+
+      } catch (e) {
+        console.warn(`Gemini ${model} attempt ${attempt + 1} failed:`, e.message);
+        lastError = e;
+        if (attempt === 0) await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+    await new Promise(r => setTimeout(r, 800));
+  }
+  throw lastError || new Error("All Gemini models failed");
+}
+
 const DB = {
   db: null,
   isInitialized: false,
@@ -452,11 +537,20 @@ const DB = {
     if (existing.length === 0) {
       const seed = this.getStringSeed(todayStr + String(userId));
 
-      // Pula wszystkich możliwych misji dziennych
-      const QUEST_POOL = [
+      // Generuj poszczególne części misji:
+      // 1. Sklasyfikuj nowe słowa (wybierz losowo 1 z 3 wariantów)
+      const classifyVariants = [
         { type: "classify",        desc: "Sklasyfikuj 15 nowych słów",                        target: 15,  xp: 40,  icon: "🔍" },
         { type: "classify",        desc: "Sklasyfikuj 30 nowych słów",                        target: 30,  xp: 75,  icon: "🔍" },
-        { type: "classify",        desc: "Sklasyfikuj 50 nowych słów",                        target: 50,  xp: 120, icon: "🔍" },
+        { type: "classify",        desc: "Sklasyfikuj 50 nowych słów",                        target: 50,  xp: 120, icon: "🔍" }
+      ];
+      const classifyQuest = classifyVariants[seed % classifyVariants.length];
+      
+      // 2. Sesja (zawsze obecna)
+      const sessionQuest = { type: "session", desc: "Ukończ 2 dowolne ćwiczenia", target: 2, xp: 70, icon: "🏋️" };
+      
+      // 3. Pozostałe aktywności (do rotacji)
+      const rotationPool = [
         { type: "speed_round",     desc: "Ukończ Speed Round",                                target: 1,   xp: 65,  icon: "⚡" },
         { type: "match_pairs",     desc: "Ukończ Dopasuj pary",                               target: 1,   xp: 55,  icon: "🔗" },
         { type: "super_quiz",      desc: "Ukończ Super-Quiz",                                 target: 1,   xp: 80,  icon: "🏆" },
@@ -465,13 +559,17 @@ const DB = {
         { type: "fill_blank",      desc: "Ukończ Test pisowni",                               target: 1,   xp: 65,  icon: "✍️" },
         { type: "promote_words",   desc: "Przenieś 3 słowa do listy \"Poznałem\"",            target: 3,   xp: 100, icon: "🎓" },
         { type: "combo_trio",      desc: "Ukończ Super-Quiz, Dopasuj pary i Speed Round",     target: 3,   xp: 150, icon: "🔥" },
-        { type: "session",         desc: "Ukończ 2 dowolne ćwiczenia",                        target: 2,   xp: 70,  icon: "🏋️" },
         { type: "multiple_choice", desc: "Ukończ Wybór wielokrotny",                          target: 1,   xp: 55,  icon: "🎯" },
         { type: "quick_challenge", desc: "Ukończ Szybkie Wyzwanie",                          target: 1,   xp: 60,  icon: "⏱️" },
+        { type: "daily_fact",      desc: "Ukończ Ciekawostkę Dnia",                           target: 1,   xp: 70,  icon: "🧪" },
+        { type: "sentence_builder", desc: "Ukończ Budowanie zdań",                            target: 1,   xp: 60,  icon: "🔤" },
+        { type: "hands_free",      desc: "Ukończ Audionaukę",                                 target: 1,   xp: 50,  icon: "🎧" },
+        { type: "context",         desc: "Ukończ Wyzwanie Kontekstu",                         target: 1,   xp: 60,  icon: "🧩" },
+        { type: "audio_quiz",      desc: "Ukończ Audio Quiz",                                 target: 1,   xp: 60,  icon: "🔊" }
       ];
 
-      // Przetasuj pulę używając seeda (LCG)
-      const shuffled = [...QUEST_POOL];
+      // Przetasuj pulę rotacyjną używając seeda (LCG)
+      const shuffled = [...rotationPool];
       let s = seed;
       for (let i = shuffled.length - 1; i > 0; i--) {
         s = ((s * 1664525) + 1013904223) & 0x7fffffff;
@@ -479,11 +577,11 @@ const DB = {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
 
-      // Wybierz 3 misje bez powtarzania typów
-      const chosen = [{ type: "quick_challenge", desc: "Ukończ Szybkie Wyzwanie", target: 1, xp: 60, icon: "⏱️" }];
-      const usedTypes = new Set(["quick_challenge"]);
+      // Wybierz 3 dodatkowe misje o różnych typach
+      const chosen = [classifyQuest, sessionQuest];
+      const usedTypes = new Set(["classify", "session"]);
       for (const q of shuffled) {
-        if (chosen.length >= 3) break;
+        if (chosen.length >= 5) break;
         if (!usedTypes.has(q.type)) {
           usedTypes.add(q.type);
           chosen.push(q);
@@ -1710,6 +1808,49 @@ const DB = {
       // 36. GET /api/exercise/daily_fact
       if (method === "GET" && path === "/api/exercise/daily_fact") {
         const category = params.get("category") || "biology";
+
+        const apiEnabled = localStorage.getItem("gemini_api_enabled") !== "false";
+        if (apiEnabled) {
+          const localApiKey = localStorage.getItem("gemini_api_key");
+          if (localApiKey) {
+            try {
+              console.log("Pobieram ciekawostkę bezpośrednio z API Gemini (klucz lokalny)...");
+              const allWords = await this.db.words.where({ user_id: userId }).toArray();
+              const preferredWords = allWords.filter(w => 
+                w.translation && 
+                (w.status === "NIE_ZNAM" || w.status === "TROCHE" || (w.status === "ZNAM" && w.learned_at))
+              );
+              let pool = recencySort(preferredWords).slice(0, 20);
+              
+              if (pool.length < 15) {
+                const fallbackWords = allWords.filter(w =>
+                  w.translation &&
+                  w.status === "ZNAM" &&
+                  !w.learned_at
+                );
+                const sortedFallback = recencySort(fallbackWords);
+                pool = pool.concat(sortedFallback.slice(0, 20 - pool.length));
+              }
+              
+              console.log("Daily Fact Debug:", {
+                userId,
+                wordsInDb: allWords.length,
+                userWordsInDb: pool.length,
+                usingFallback: pool.length === 0
+              });
+              if (pool.length === 0) {
+                const allCoca = await this.db.coca_words.toArray();
+                pool = allCoca.map(c => ({ word: c.word, translation: c.translation }));
+              }
+              const shuffledWords = [...pool].sort(() => Math.random() - 0.5);
+              const data = await fetchDirectGeminiDailyFact(category, shuffledWords, localApiKey);
+              if (data && data.fact) return data;
+            } catch (e) {
+              console.warn("Direct Gemini daily_fact failed, trying server/offline:", e.message);
+            }
+          }
+        }
+
         // Try server first
         try {
           const controller = new AbortController();

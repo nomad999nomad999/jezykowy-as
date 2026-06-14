@@ -60,14 +60,14 @@ const Stats = {
       API.get('/api/stats/vocab-chart'),
       API.get('/api/quests'),
       API.get('/api/achievements'),
-    ]);
+     ]);
 
     // Misje Dzienne
     const questsEl = document.getElementById('questsList');
     if (questsEl && quests && quests.length) {
       const done = quests.filter(q => q.completed).length;
       const badge = document.getElementById('questsBadge');
-      if (badge) badge.textContent = `${done}/3 ukończone`;
+      if (badge) badge.textContent = `${done}/${quests.length} ukończone`;
       questsEl.innerHTML = quests.map(q => {
         const pct = Math.min(100, Math.round(q.progress / q.target * 100));
         const isDone = q.completed;

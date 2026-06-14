@@ -970,6 +970,7 @@ Object.assign(Exercise, {
     this.idx = 0;
     this.score = 0;
     this.xpEarned = 0;
+    this.startTime = Date.now();
     this.setScore();
     await this.renderSentenceBuilder();
   },
@@ -1131,6 +1132,7 @@ Object.assign(Exercise, {
     this.score = 0; this.xpEarned = 0; this._dfFactNum = 0; this._dfAllResults = [];
     this._dfFact = null; // wymuś nowe generowanie przy każdym starcie
     this.total = 9;
+    this.startTime = Date.now();
     this._dfRenderCategoryPicker();
   },
 
@@ -1790,7 +1792,7 @@ const Home = {
       if (questsEl && quests && quests.length) {
         const done = quests.filter(q => q.completed).length;
         const badge = document.getElementById('homeQuestsBadge');
-        if (badge) badge.textContent = `${done}/3 ukończone`;
+        if (badge) badge.textContent = `${done}/${quests.length} ukończone`;
         questsEl.innerHTML = quests.map(q => {
           const pct = Math.min(100, Math.round(q.progress / q.target * 100));
           const isDone = q.completed;
