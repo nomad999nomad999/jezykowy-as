@@ -198,189 +198,6 @@ Example: {"sentence": "I have no _____ about his honesty.", "answer": "doubt", "
   throw lastError || new Error("All models failed");
 }
 
-async function fetchDirectGeminiDailyFact(category, userWords, apiKey) {
-  const cats = {
-    biology: ["Biology", "Biologia"],
-    evolutionary_biology: ["Evolutionary Biology", "Biologia ewolucyjna"],
-    nature: ["Nature", "Przyroda"],
-    physics: ["Physics", "Fizyka"],
-    technology: ["Technology", "Technika"]
-  };
-  const [catEn, catPl] = cats[category] || ["Biology", "Biologia"];
-  const wordsStr = userWords.slice(0, 15).map(w => `"${w.word}" (${w.translation || '?'})`).join(", ");
-
-  const prompt = `You are creating educational English content for a Polish speaker learning English.
-
-Category: ${catEn} (${catPl})
-User's vocabulary to practice (pick 3-5 and use them naturally): ${wordsStr}
-
-CRITICAL RULE: You MUST ONLY select target words to practice from the "User's vocabulary to practice" list above. Do NOT highlight (**word**) or include in "used_words" any words that are not present in the provided list. If the list is empty, then you can use common words, but if it has words, use ONLY those words.
-
-Return ONLY valid JSON (no markdown):
-{
-  "title": "Specific topic title (4-6 English words)",
-  "fact": "3-4 sentences (80-130 words). B1-B2 English level. Use 3-5 target words from the list naturally. Mark each used target word with **double asterisks** like **word**.",
-  "used_words": [
-    {"word": "used_word", "translation": "polskie tlumaczenie", "context": "short phrase using it"}
-  ],
-  "questions": [
-    {"statement": "One-sentence T/F statement about the fact only.", "answer": true, "explanation": "Krotkie wyjasnienie po polsku."},
-    {"statement": "Another statement.", "answer": false, "explanation": "Wyjasnienie."},
-    {"statement": "Third statement.", "answer": true, "explanation": "Wyjasnienie."}
-  ]
-}
-
-Rules:
-- Exactly 3 questions, mix of true/false (not all same answer)
-- Questions answerable ONLY from the fact text
-- Fact must be genuinely interesting and accurate
-- Explanations in Polish`;
-
-  const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
-  let lastError = null;
-
-  for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-
-        if (response.status === 429) {
-          console.warn(`Gemini ${model} rate limit (429), trying next model...`);
-          lastError = new Error("Rate limit 429");
-          break;
-        }
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("Empty Gemini response");
-
-        let raw = text.trim();
-        const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
-        if (s !== -1 && e !== -1) raw = raw.substring(s, e + 1);
-        const parsed = JSON.parse(raw);
-        if (!parsed.fact || !parsed.questions || parsed.questions.length < 3) {
-          throw new Error("Missing fact or questions in response");
-        }
-        return parsed;
-
-      } catch (e) {
-        console.warn(`Gemini ${model} attempt ${attempt + 1} failed:`, e.message);
-        lastError = e;
-        if (attempt === 0) await new Promise(r => setTimeout(r, 1500));
-      }
-    }
-    await new Promise(r => setTimeout(r, 800));
-  }
-  throw lastError || new Error("All Gemini models failed");
-}
-
-async function fetchDirectGeminiRpgStep(theme, stage, previousStory, targetWord, targetTranslation, apiKey) {
-  const stagesDesc = {
-    1: "Intro / Beginning of the journey. Establish the scene and introducing the challenge.",
-    2: "Journey / Obstacle. Encountering a minor problem or barrier.",
-    3: "Climax / Deep danger. A tense encounter or high risk.",
-    4: "Escape / Finding a way out / Resolution of the danger.",
-    5: "Final resolution / Epilogue. Celebrating victory or achieving the goal."
-  };
-  const stageText = stagesDesc[stage] || "Continuing the journey.";
-  const prompt = `You are generating an interactive RPG text adventure for a Polish student learning English.
-Theme/Setting: ${theme}
-Current Stage: ${stage} of 5 (${stageText})
-Target Vocabulary Word to practice: "${targetWord}" (Polish translation: "${targetTranslation}")
-
-Story so far:
-${previousStory || "This is the start of the adventure."}
-
-CRITICAL RULES:
-1. Write a short story continuation (2-3 sentences, 50-80 words) in English. It MUST naturally use the word "${targetWord}" exactly, marked with **double asterisks** like **${targetWord}**.
-2. Provide exactly 3 choices for how the player proceeds next.
-3. Only ONE choice can be correct (leads to success, uses/understands "${targetWord}" properly). Set "is_correct": true for this one.
-4. The other two choices must be incorrect (leads to minor failure or danger, misunderstands "${targetWord}", or is contextually unsafe). Set "is_correct": false for these.
-5. Provide the Polish translation of the story ("story_pl") and translations/effects for all choices.
-6. Return ONLY a valid JSON object. Do NOT wrap in markdown code blocks.
-
-Expected JSON Structure:
-{
-  "story": "The narrative text in English...",
-  "story_pl": "Tłumaczenie fabuły na język polski...",
-  "choices": [
-    {
-      "text": "Action option 1 in English...",
-      "text_pl": "Tłumaczenie opcji 1 na polski...",
-      "is_correct": true,
-      "effect": "Opis sukcesu po polsku (np. Uciekasz bezpiecznie! +10 XP)"
-    },
-    {
-      "text": "Action option 2 in English...",
-      "text_pl": "Tłumaczenie opcji 2 na polski...",
-      "is_correct": false,
-      "effect": "Opis porażki po polsku (np. Potwór cię dogania! Tracisz serduszko -1 Heart)"
-    },
-    {
-      "text": "Action option 3 in English...",
-      "text_pl": "Tłumaczenie opcji 3 na polski...",
-      "is_correct": false,
-      "effect": "Opis porażki po polsku (np. Zła decyzja! Tracisz serduszko -1 Heart)"
-    }
-  ]
-}`;
-
-  const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
-  let lastError = null;
-
-  for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-
-        if (response.status === 429) {
-          console.warn(`Gemini ${model} rate limit (429), trying next model...`);
-          lastError = new Error("Rate limit 429");
-          break;
-        }
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("Empty Gemini response");
-
-        let raw = text.trim();
-        const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
-        if (s !== -1 && e !== -1) raw = raw.substring(s, e + 1);
-        const parsed = JSON.parse(raw);
-        if (!parsed.story || !parsed.choices || parsed.choices.length < 3) {
-          throw new Error("Missing story or choices in response");
-        }
-        return parsed;
-
-      } catch (e) {
-        console.warn(`Gemini ${model} attempt ${attempt + 1} failed:`, e.message);
-        lastError = e;
-        if (attempt === 0) await new Promise(r => setTimeout(r, 1500));
-      }
-    }
-    await new Promise(r => setTimeout(r, 800));
-  }
-  throw lastError || new Error("All Gemini models failed");
-}
-
 const DB = {
   db: null,
   isInitialized: false,
@@ -631,42 +448,30 @@ const DB = {
 
   // Generowanie misji dziennych z daty
   async ensureDailyQuests(userId, todayStr) {
-    let existing = await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).toArray();
-    if (existing.length > 0 && existing.length < 5) {
-      await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).delete();
-      existing = [];
-    }
+    const existing = await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).toArray();
     if (existing.length === 0) {
       const seed = this.getStringSeed(todayStr + String(userId));
 
-      // Generuj poszczególne części misji:
-      // 1. Sklasyfikuj nowe słowa (wybierz losowo 1 z 3 wariantów)
-      const classifyVariants = [
+      // Pula wszystkich możliwych misji dziennych
+      const QUEST_POOL = [
         { type: "classify",        desc: "Sklasyfikuj 15 nowych słów",                        target: 15,  xp: 40,  icon: "🔍" },
         { type: "classify",        desc: "Sklasyfikuj 30 nowych słów",                        target: 30,  xp: 75,  icon: "🔍" },
-        { type: "classify",        desc: "Sklasyfikuj 50 nowych słów",                        target: 50,  xp: 120, icon: "🔍" }
-      ];
-      const classifyQuest = classifyVariants[seed % classifyVariants.length];
-      
-      // 2. Sesja (zawsze obecna)
-      const sessionQuest = { type: "session", desc: "Ukończ 2 dowolne ćwiczenia", target: 2, xp: 70, icon: "🏋️" };
-      
-      // 3. Pozostałe aktywności (do rotacji)
-      const rotationPool = [
+        { type: "classify",        desc: "Sklasyfikuj 50 nowych słów",                        target: 50,  xp: 120, icon: "🔍" },
         { type: "speed_round",     desc: "Ukończ Speed Round",                                target: 1,   xp: 65,  icon: "⚡" },
         { type: "match_pairs",     desc: "Ukończ Dopasuj pary",                               target: 1,   xp: 55,  icon: "🔗" },
         { type: "super_quiz",      desc: "Ukończ Super-Quiz",                                 target: 1,   xp: 80,  icon: "🏆" },
         { type: "srs",             desc: "Ukończ powtórkę SRS",                               target: 1,   xp: 65,  icon: "🧠" },
+        { type: "flashcards",      desc: "Ćwicz Fiszki (min. 10 słów)",                       target: 10,  xp: 50,  icon: "🃏" },
         { type: "fill_blank",      desc: "Ukończ Test pisowni",                               target: 1,   xp: 65,  icon: "✍️" },
         { type: "promote_words",   desc: "Przenieś 3 słowa do listy \"Poznałem\"",            target: 3,   xp: 100, icon: "🎓" },
+        { type: "combo_trio",      desc: "Ukończ Super-Quiz, Dopasuj pary i Speed Round",     target: 3,   xp: 150, icon: "🔥" },
+        { type: "session",         desc: "Ukończ 2 dowolne ćwiczenia",                        target: 2,   xp: 70,  icon: "🏋️" },
+        { type: "multiple_choice", desc: "Ukończ Wybór wielokrotny",                          target: 1,   xp: 55,  icon: "🎯" },
         { type: "quick_challenge", desc: "Ukończ Szybkie Wyzwanie",                          target: 1,   xp: 60,  icon: "⏱️" },
-        { type: "daily_fact",      desc: "Ukończ Ciekawostkę Dnia",                           target: 1,   xp: 70,  icon: "🧪" },
-        { type: "sentence_builder", desc: "Ukończ Budowanie zdań",                            target: 1,   xp: 60,  icon: "🔤" },
-        { type: "hands_free",      desc: "Ukończ Audionaukę",                                 target: 1,   xp: 50,  icon: "🎧" }
       ];
 
-      // Przetasuj pulę rotacyjną używając seeda (LCG)
-      const shuffled = [...rotationPool];
+      // Przetasuj pulę używając seeda (LCG)
+      const shuffled = [...QUEST_POOL];
       let s = seed;
       for (let i = shuffled.length - 1; i > 0; i--) {
         s = ((s * 1664525) + 1013904223) & 0x7fffffff;
@@ -674,11 +479,11 @@ const DB = {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
 
-      // Wybierz 3 dodatkowe misje o różnych typach
-      const chosen = [classifyQuest, sessionQuest];
-      const usedTypes = new Set(["classify", "session"]);
+      // Wybierz 3 misje bez powtarzania typów
+      const chosen = [{ type: "quick_challenge", desc: "Ukończ Szybkie Wyzwanie", target: 1, xp: 60, icon: "⏱️" }];
+      const usedTypes = new Set(["quick_challenge"]);
       for (const q of shuffled) {
-        if (chosen.length >= 5) break;
+        if (chosen.length >= 3) break;
         if (!usedTypes.has(q.type)) {
           usedTypes.add(q.type);
           chosen.push(q);
@@ -1905,49 +1710,6 @@ const DB = {
       // 36. GET /api/exercise/daily_fact
       if (method === "GET" && path === "/api/exercise/daily_fact") {
         const category = params.get("category") || "biology";
-
-        const apiEnabled = localStorage.getItem("gemini_api_enabled") !== "false";
-        if (apiEnabled) {
-          const localApiKey = localStorage.getItem("gemini_api_key");
-          if (localApiKey) {
-            try {
-              console.log("Pobieram ciekawostkę bezpośrednio z API Gemini (klucz lokalny)...");
-              const allWords = await this.db.words.where({ user_id: userId }).toArray();
-              const preferredWords = allWords.filter(w => 
-                w.translation && 
-                (w.status === "NIE_ZNAM" || w.status === "TROCHE" || (w.status === "ZNAM" && w.learned_at))
-              );
-              let pool = recencySort(preferredWords).slice(0, 20);
-              
-              if (pool.length < 15) {
-                const fallbackWords = allWords.filter(w =>
-                  w.translation &&
-                  w.status === "ZNAM" &&
-                  !w.learned_at
-                );
-                const sortedFallback = recencySort(fallbackWords);
-                pool = pool.concat(sortedFallback.slice(0, 20 - pool.length));
-              }
-              
-              console.log("Daily Fact Debug:", {
-                userId,
-                wordsInDb: allWords.length,
-                userWordsInDb: pool.length,
-                usingFallback: pool.length === 0
-              });
-              if (pool.length === 0) {
-                const allCoca = await this.db.coca_words.toArray();
-                pool = allCoca.map(c => ({ word: c.word, translation: c.translation }));
-              }
-              const shuffledWords = [...pool].sort(() => Math.random() - 0.5);
-              const data = await fetchDirectGeminiDailyFact(category, shuffledWords, localApiKey);
-              if (data && data.fact) return data;
-            } catch (e) {
-              console.warn("Direct Gemini daily_fact failed, trying server/offline:", e.message);
-            }
-          }
-        }
-
         // Try server first
         try {
           const controller = new AbortController();
@@ -2033,254 +1795,28 @@ const DB = {
         return OFFLINE[category] || OFFLINE.biology;
       }
 
-      // 37. POST /api/gemini/rpg_adventure
-      if (method === "POST" && path === "/api/gemini/rpg_adventure") {
-        const theme = data.theme || "Space Odyssey";
-        const stage = parseInt(data.stage || 1);
-        const previousStory = data.previous_story || "";
-        const word = data.word || "";
-        const translation = data.translation || "";
-
-        const apiEnabled = localStorage.getItem("gemini_api_enabled") !== "false";
-        if (apiEnabled) {
-          const localApiKey = localStorage.getItem("gemini_api_key");
-          if (localApiKey) {
-            try {
-              console.log("Pobieram krok RPG bezpośrednio z API Gemini (klucz lokalny)...");
-              const res = await fetchDirectGeminiRpgStep(theme, stage, previousStory, word, translation, localApiKey);
-              if (res && res.story) return res;
-            } catch (e) {
-              console.warn("Direct Gemini RPG failed, trying server/offline:", e.message);
-            }
-          }
-        }
-
-        // Try server
-        try {
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 12000);
-          const resp = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-User-Id": userId.toString()
-            },
-            body: JSON.stringify(data),
-            signal: controller.signal
+      // Fallback: forward unmatched routes to Flask server
+      try {
+        const headers = { 'X-User-Id': localStorage.getItem('uid') || '' };
+        if (method === "POST") {
+          headers['Content-Type'] = 'application/json';
+          const res = await window.fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(data)
           });
-          clearTimeout(tid);
-          if (resp.ok) {
-            const d = await resp.json();
-            if (d && d.story) return d;
-          }
-        } catch (e) {
-          console.log("RPG server unavailable, using offline:", e.message);
+          return await res.json();
+        } else {
+          const res = await window.fetch(url, {
+            method: 'GET',
+            headers: headers
+          });
+          return await res.json();
         }
-
-        // Offline templates for PWA mode
-        const OFFLINE_RPG = {
-          "Space Odyssey": {
-            1: {
-              story: `As your ship enters the dark void of the **Space Odyssey**, your sensors detect an unknown anomaly. You must **${word}** the navigational systems to avoid collision.`,
-              story_pl: `Gdy twój statek wkracza w ciemną pustkę Odysei Kosmicznej, czujniki wykrywają nieznaną anomalię. Musisz dostosować/obsłużyć systemy nawigacyjne, aby uniknąć kolizji.`,
-              choices: [
-                { text: `Immediately try to ${word} the navigational panel and correct the course.`, text_pl: `Natychmiast spróbuj obsłużyć panel nawigacyjny i skorygować kurs.`, is_correct: true, effect: "Udało się! Statek omija niebezpieczeństwo! (+10 XP)" },
-                { text: `Abandon the ship and run to the escape pods.`, text_pl: `Porzuć statek i uciekaj do kapsuł ratunkowych.`, is_correct: false, effect: "Kapsuły są zablokowane! Tracisz serduszko (-1 Heart)" },
-                { text: `Turn off all power and wait.`, text_pl: `Wyłącz całe zasilanie i czekaj.`, is_correct: false, effect: "Dryfujesz wprost na asteroidę! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            2: {
-              story: `You bypass the anomaly, but now the fuel levels are critical. To keep moving, you must **${word}** the energy from the life support systems.`,
-              story_pl: `Omijasz anomalię, ale teraz poziom paliwa jest krytyczny. Aby kontynuować ruch, musisz przekierować/zarządzać energią z systemów podtrzymywania życia.`,
-              choices: [
-                { text: `Carefully ${word} the energy to the main engines.`, text_pl: `Ostrożnie przekieruj energię do głównych silników.`, is_correct: true, effect: "Udało się! Silniki znowu pracują stabilnie! (+10 XP)" },
-                { text: `Destroy the panel in frustration.`, text_pl: `Zniszcz panel z frustracji.`, is_correct: false, effect: "Uszkodziłeś statek! Tracisz serduszko (-1 Heart)" },
-                { text: `Do nothing and go to sleep.`, text_pl: `Nic nie rób i idź spać.`, is_correct: false, effect: "Systemy podtrzymywania życia powoli gasną! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            3: {
-              story: `An alien vessel appears on the radar, demanding communication. They look hostile. Your commander advises you to **${word}** a message immediately.`,
-              story_pl: `Obcy statek pojawia się na radarze, żądając komunikacji. Wyglądają wrogo. Twój dowódca radzi, abyś natychmiast wysłał/sformułował odpowiednią wiadomość.`,
-              choices: [
-                { text: `Quickly ${word} a diplomatic response in their language.`, text_pl: `Szybko sformułuj/wyślij dyplomatyczną odpowiedź w ich języku.`, is_correct: true, effect: "Obcy przyjmują wiadomość i opuszczają broń! (+10 XP)" },
-                { text: `Fire all weapons at their ship.`, text_pl: `Wystrzel całą broń w ich statek.`, is_correct: false, effect: "Ich tarcze odbijają strzał i kontratakują! Tracisz serduszko (-1 Heart)" },
-                { text: `Transmit loud rock music.`, text_pl: `Nadaj głośną muzykę rockową.`, is_correct: false, effect: "Obcy uznają to za zniewagę i strzelają! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            4: {
-              story: `The aliens guide you through a dangerous asteroid belt. However, your shields are failing. You need to **${word}** the defense matrix.`,
-              story_pl: `Obcy prowadzą cię przez niebezpieczny pas asteroid. Jednak twoje tarcze słabną. Musisz wzmocnić/obsłużyć matrycę obronną.`,
-              choices: [
-                { text: `Activate and ${word} the backup shield generator.`, text_pl: `Aktywuj i obsłuż zapasowy generator tarcz.`, is_correct: true, effect: "Tarcze wracają do pełnej sprawności! (+10 XP)" },
-                { text: `Try to push asteroid out of the way.`, text_pl: `Spróbuj odepchnąć asteroidę.`, is_correct: false, effect: "To niemożliwe! Tracisz serduszko (-1 Heart)" },
-                { text: `Scream at the sensors.`, text_pl: `Krzycz na czujniki.`, is_correct: false, effect: "Asteroida uderza w kadłub! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            5: {
-              story: `You reach the orbit of the destination planet. The journey was long, but you **${word}** arrived at your new home.`,
-              story_pl: `Docierasz na orbitę docelowej planety. Podróż była długa, ale ostatecznie dotarłeś do swojego nowego domu.`,
-              choices: [
-                { text: `Celebrate as you ${word} touch down on the surface.`, text_pl: `Świętuj, gdy ostatecznie lądujesz na powierzchni.`, is_correct: true, effect: "Wspaniały finał! Zwycięstwo! (+50 XP)" },
-                { text: `Crash land on purpose.`, text_pl: `Rozbij się celowo podczas lądowania.`, is_correct: false, effect: "Porażka na samym końcu! Tracisz serduszko (-1 Heart)" },
-                { text: `Refuse to land.`, text_pl: `Odmów lądowania.`, is_correct: false, effect: "Kończy się tlen! Tracisz serduszko (-1 Heart)" }
-              ]
-            }
-          },
-          "Fantasy Kingdom": {
-            1: {
-              story: `You stand at the gates of the **Fantasy Kingdom**. A massive guard blocks your path. You must **${word}** a magic scroll to convince him to let you enter.`,
-              story_pl: `Stoisz u bram Królestwa Fantasy. Potężny strażnik blokuje ci drogę. Musisz użyć/pokazać magiczny zwój, aby przekonać go do wpuszczenia cię.`,
-              choices: [
-                { text: `Present and ${word} the glowing magic scroll.`, text_pl: `Zaprezentuj i użyj świecący magiczny zwój.`, is_correct: true, effect: "Strażnik kłania się i otwiera bramę! (+10 XP)" },
-                { text: `Try to fight the guard.`, text_pl: `Spróbuj walczyć ze strażnikiem.`, is_correct: false, effect: "Strażnik jest zbyt silny! Tracisz serduszko (-1 Heart)" },
-                { text: `Run away crying.`, text_pl: `Uciekaj z płaczem.`, is_correct: false, effect: "Gubisz się w ciemnym lesie! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            2: {
-              story: `Inside the kingdom, you find a wounded elf. To save her life, you must **${word}** her with your healing potions.`,
-              story_pl: `Wewnątrz królestwa znajdujesz ranną elfkę. Aby uratować jej życie, musisz pomóc jej/podać lecznicze eliksiry.`,
-              choices: [
-                { text: `Quickly ${word} the elf and dress her wounds.`, text_pl: `Szybko pomóż elfce i opatrz jej rany.`, is_correct: true, effect: "Elfka budzi się i dziękuje ci, dając wskazówki! (+10 XP)" },
-                { text: `Steal her gold.`, text_pl: `Ukradnij jej złoto.`, is_correct: false, effect: "Zostałeś przeklęty! Tracisz serduszko (-1 Heart)" },
-                { text: `Leave her alone.`, text_pl: `Zostaw ją samą.`, is_correct: false, effect: "Duchy lasu są zagniewane! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            3: {
-              story: `The elf warns you about a dragon in the mountains. She says you must **${word}** a plan to defeat it before climbing up.`,
-              story_pl: `Elfka ostrzega cię przed smokiem w górach. Mówi, że musisz przygotować/sformułować plan pokonania go przed wspinaczką.`,
-              choices: [
-                { text: `Sit down and ${word} a smart tactical strategy.`, text_pl: `Usiądź i sformułuj sprytną strategię taktyczną.`, is_correct: true, effect: "Twój plan jest genialny! Jesteś gotowy na smoka! (+10 XP)" },
-                { text: `Charge blindly up the mountain.`, text_pl: `Szarżuj ślepo pod górę.`, is_correct: false, effect: "Smok zaskakuje cię ogniem! Tracisz serduszko (-1 Heart)" },
-                { text: `Try to bribe the dragon.`, text_pl: `Spróbuj przekupić smoka.`, is_correct: false, effect: "Smok nie interesuje się miedziakami! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            4: {
-              story: `You face the dragon! It prepares to breathe fire. You need to **${word}** your shield spell immediately.`,
-              story_pl: `Stajesz oko w oko ze smokiem! Przygotowuje się do zionięcia ogniem. Musisz natychmiast aktywować/obsłużyć czar tarczy.`,
-              choices: [
-                { text: `Cast and ${word} the legendary fire shield spell.`, text_pl: `Rzuć i obsłuż legendarny czar tarczy ognia.`, is_correct: true, effect: "Ogień odbija się od tarczy bez szkody! (+10 XP)" },
-                { text: `Throw a rock at its nose.`, text_pl: `Rzuć kamieniem w jego nos.`, is_correct: false, effect: "To tylko go rozzłościło! Tracisz serduszko (-1 Heart)" },
-                { text: `Hide behind a dry bush.`, text_pl: `Ukryj się za suchym krzakiem.`, is_correct: false, effect: "Krzak natychmiast spłonął! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            5: {
-              story: `The dragon is defeated! The king is grateful. You **${word}** achieve peace in the realm and become a hero.`,
-              story_pl: `Smok został pokonany! Król jest wdzięczny. Ostatecznie osiągasz pokój w krainie i zostajesz bohaterem.`,
-              choices: [
-                { text: `Celebrate as you ${word} receive the royal crown.`, text_pl: `Świętuj, gdy ostatecznie otrzymujesz królewską koronę.`, is_correct: true, effect: "Zwycięstwo! Królestwo jest bezpieczne! (+50 XP)" },
-                { text: `Insult the king's beard.`, text_pl: `Obraź brodę króla.`, is_correct: false, effect: "Trafiasz do lochu! Tracisz serduszko (-1 Heart)" },
-                { text: `Give the gold back to the dragon.`, text_pl: `Oddaj złoto smokowi.`, is_correct: false, effect: "Smok ożywa i cię pożera! Tracisz serduszko (-1 Heart)" }
-              ]
-            }
-          },
-          "Primeval Man": {
-            1: {
-              story: `In the era of the **Primeval Man**, your tribe is cold. You must **${word}** fire using friction.`,
-              story_pl: `W czasach człowieka pierwotnego twoje plemię marznie. Musisz wytworzyć/stworzyć ogień za pomocą tarcia.`,
-              choices: [
-                { text: `Rub dry sticks to ${word} the first sparks.`, text_pl: `Pocieraj suche patyki, aby wytworzyć pierwsze iskry.`, is_correct: true, effect: "Ogień płonie! Plemię cię uwielbia! (+10 XP)" },
-                { text: `Scream at the cold sky.`, text_pl: `Krzycz na zimne niebo.`, is_correct: false, effect: "Tylko zmarzłeś! Tracisz serduszko (-1 Heart)" },
-                { text: `Eat raw ice.`, text_pl: `Jedz surowy lód.`, is_correct: false, effect: "Rozchorowałeś się! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            2: {
-              story: `A mammoth approaches the camp. To protect the children, you must **${word}** a trap quickly.`,
-              story_pl: `Mamut zbliża się do obozu. Aby chronić dzieci, musisz szybko zbudować/zorganizować pułapkę.`,
-              choices: [
-                { text: `Dig a deep pit to ${word} a mammoth trap.`, text_pl: `Wykop głęboki dół, aby przygotować pułapkę na mamuta.`, is_correct: true, effect: "Mamut wpadł w pułapkę! Plemię ma jedzenie! (+10 XP)" },
-                { text: `Try to hug the mammoth.`, text_pl: `Spróbuj przytulić mamuta.`, is_correct: false, effect: "Zostałeś rozdeptany! Tracisz serduszko (-1 Heart)" },
-                { text: `Throw berries at it.`, text_pl: `Rzuć w niego jagodami.`, is_correct: false, effect: "Mamut się rozzłościł! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            3: {
-              story: `Another tribe approaches peacefully. They want to trade. You must **${word}** your intentions using hand gestures.`,
-              story_pl: `Inne plemię zbliża się pokojowo. Chcą handlować. Musisz zakomunikować/przedstawić swoje intencje za pomocą gestów.`,
-              choices: [
-                { text: `Smile and use signs to ${word} peace.`, text_pl: `Uśmiechnij się i użyj znaków, aby zakomunikować pokój.`, is_correct: true, effect: "Wymiana handlowa zakończona sukcesem! (+10 XP)" },
-                { text: `Throw a spear at their leader.`, text_pl: `Rzuć włócznią w ich przywódcę.`, is_correct: false, effect: "Wywołujesz wojnę! Tracisz serduszko (-1 Heart)" },
-                { text: `Hide in a cave.`, text_pl: `Ukryj się w jaskini.`, is_correct: false, effect: "Uznali cię za tchórza i zabrali zapasy! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            4: {
-              story: `A sudden storm floods the valley. You need to **${word}** the high caves to survive the night.`,
-              story_pl: `Naglą burza zalewa dolinę. Musisz dotrzeć/zabezpieczyć wysokie jaskinie, aby przeżyć noc.`,
-              choices: [
-                { text: `Climb the rocks to ${word} safety in the high cave.`, text_pl: `Wskakuj na skały, aby zabezpieczyć/dotrzeć do bezpiecznej jaskini.`, is_correct: true, effect: "Jesteś bezpieczny i suchy! (+10 XP)" },
-                { text: `Try to swim in the mud river.`, text_pl: `Spróbuj pływać w błotnej rzece.`, is_correct: false, effect: "Nurt jest zbyt silny! Tracisz serduszko (-1 Heart)" },
-                { text: `Sleep under a tree.`, text_pl: `Śpij pod drzewem.`, is_correct: false, effect: "Piorun uderza w pobliżu! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            5: {
-              story: `The storm passes. You paint your victory on the walls. Your tribe has **${word}** survived the winter.`,
-              story_pl: `Burza mija. Malujesz zwycięstwo na ścianach. Twoje plemię ostatecznie przetrwało zimę.`,
-              choices: [
-                { text: `Rejoice as you ${word} see the warm spring sun.`, text_pl: `Raduj się, gdy ostatecznie widzisz ciepłe wiosenne słońce.`, is_correct: true, effect: "Zwycięstwo pierwotnego człowieka! (+50 XP)" },
-                { text: `Eat poisonous red mushrooms.`, text_pl: `Zjedz trujące czerwone grzyby.`, is_correct: false, effect: "Straszny ból brzucha na koniec! Tracisz serduszko (-1 Heart)" },
-                { text: `Jump off the cliff to celebrate.`, text_pl: `Skocz z klifu, by świętować.`, is_correct: false, effect: "To był zły skok! Tracisz serduszko (-1 Heart)" }
-              ]
-            }
-          },
-          "Dinosaurs Era": {
-            1: {
-              story: `You find yourself in the **Dinosaurs Era**. A huge Brachiosaurus is eating leaves above you. You must **${word}** your movements to avoid making noise.`,
-              story_pl: `Znajdujesz się w Erze Dinozaurów. Wielki Brachiozaur je liście nad tobą. Musisz kontrolować/dostosować swoje ruchy, aby nie hałasować.`,
-              choices: [
-                { text: `Slowly and carefully ${word} your steps in the grass.`, text_pl: `Powoli i ostrożnie dostosuj swoje kroki w trawie.`, is_correct: true, effect: "Dinozaur cię nie zauważa! (+10 XP)" },
-                { text: `Run screaming towards it.`, text_pl: `Biegnij z krzykiem w jego stronę.`, is_correct: false, effect: "Ogromny ogon uderza w ziemię obok ciebie! Tracisz serduszko (-1 Heart)" },
-                { text: `Blow a whistle.`, text_pl: `Dmij w gwizdek.`, is_correct: false, effect: "Płosząc stado, zostajesz potrącony! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            2: {
-              story: `A pack of Velociraptors appears in the jungle. To escape, you must **${word}** them by throwing a heavy stone.`,
-              story_pl: `Stado Welociraptorów pojawia się w dżungli. Aby uciec, musisz odwrócić ich uwagę/zdezorientować ich, rzucając ciężki kamień.`,
-              choices: [
-                { text: `Throw the stone to the left to ${word} the pack.`, text_pl: `Rzuć kamień w lewo, aby odwrócić uwagę/zdezorientować stado.`, is_correct: true, effect: "Raptory biegną za dźwiękiem, a ty uciekasz! (+10 XP)" },
-                { text: `Try to challenge them to a race.`, text_pl: `Spróbuj wyzwać je na wyścig.`, is_correct: false, effect: "Są o wiele szybsze! Tracisz serduszko (-1 Heart)" },
-                { text: `Pretend to be a tree.`, text_pl: `Udawaj drzewo.`, is_correct: false, effect: "Raptory mają świetny węch! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            3: {
-              story: `You reach a wide river. A sleeping Spinosaurus is blocking the shallow path. You must **${word}** a raft using bamboo logs.`,
-              story_pl: `Docierasz do szerokiej rzeki. Śpiący Spinozaur blokuje płytką ścieżkę. Musisz zbudować/zorganizować tratwę z pędów bambusa.`,
-              choices: [
-                { text: `Tie the logs to ${word} a sturdy raft.`, text_pl: `Powiąż kłody, aby przygotować/zbudować solidną tratwę.`, is_correct: true, effect: "Płyniesz bezpiecznie w dół rzeki! (+10 XP)" },
-                { text: `Try to step over the Spinosaurus' tail.`, text_pl: `Spróbuj przejść nad ogonem Spinozaura.`, is_correct: false, effect: "Obudził się! Tracisz serduszko (-1 Heart)" },
-                { text: `Throw water at him.`, text_pl: `Rzuć w niego wodą.`, is_correct: false, effect: "Uwielbia wodę i jest wściekły! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            4: {
-              story: `A Tyrannosaurus Rex starts chasing you! Its roar is deafening. You must **${word}** inside a hollow tree trunk.`,
-              story_pl: `Tyranozaur Rex zaczyna cię gonić! Jego ryk jest ogłuszający. Musisz ukryć się/zabezpieczyć pozycję wewnątrz pustego pnia.`,
-              choices: [
-                { text: `Dive quickly to ${word} yourself inside the deep hollow trunk.`, text_pl: `Zanurkuj szybko, aby zabezpieczyć się/ukryć w głębi pustego pnia.`, is_correct: true, effect: "T-Rex przechodzi obok nie widząc cię! (+10 XP)" },
-                { text: `Try to outrun him in a straight line.`, text_pl: `Spróbuj go wyprzedzić biegnąc prosto.`, is_correct: false, effect: "Dogonił cię! Tracisz serduszko (-1 Heart)" },
-                { text: `Throw sand in his eyes.`, text_pl: `Rzuć mu piaskiem w oczy.`, is_correct: false, effect: "Jego ramiona są za krótkie, ale zęby zbyt długie! Tracisz serduszko (-1 Heart)" }
-              ]
-            },
-            5: {
-              story: `You find a mysterious portal glowing in a cave. You step through and **${word}** return to the modern world.`,
-              story_pl: `Znajdujesz tajemniczy, świecący portal w jaskini. Przechodzisz przez niego i ostatecznie wracasz do współczesnego świata.`,
-              choices: [
-                { text: `Step in and rejoice as you ${word} reach home.`, text_pl: `Wejdź i raduj się, gdy ostatecznie docierasz do domu.`, is_correct: true, effect: "Zwycięstwo! Przetrwałeś Erę Dinozaurów! (+50 XP)" },
-                { text: `Destroy the portal with a club.`, text_pl: `Zniszcz portal maczugą.`, is_correct: false, effect: "Zostajesz uwięziony na zawsze! Tracisz serduszko (-1 Heart)" },
-                { text: `Go back to fight T-Rex.`, text_pl: `Wróć, aby walczyć z T-Rexem.`, is_correct: false, effect: "To była zła decyzja! Tracisz serduszko (-1 Heart)" }
-              ]
-            }
-          }
-        };
-
-        // Fallback generic mapping for other themes (Detective, Zombie)
-        const selectedTheme = OFFLINE_RPG[theme] ? theme : "Space Odyssey";
-        const stepData = OFFLINE_RPG[selectedTheme][stage] || OFFLINE_RPG[selectedTheme][1];
-        
-        return {
-          story: stepData.story,
-          story_pl: stepData.story_pl,
-          choices: stepData.choices
-        };
+      } catch (fetchErr) {
+        console.warn(`Unmatched route fallback failed for ${method} ${path}:`, fetchErr);
+        return { error: `Not Found/Offline: ${method} ${path}` };
       }
-
-      return { error: `Not Found: ${method} ${path}` };
 
 
 

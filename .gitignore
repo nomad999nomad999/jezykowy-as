@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# Databases
+*.db
+*.db-journal
+*.sqlite3
+
+# Environment & Private Keys
+.env
+data/
+*.pem
+*.key
+
+# Archives & Temporary files
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.apkg
+*.xlsx
+*.csv
+.DS_Store
+Thumbs.db

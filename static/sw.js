@@ -1,4 +1,4 @@
-const CACHE = 'eng-v30';
+const CACHE = 'eng-v32';
 const ASSETS = [
   './',
   'index.html',
