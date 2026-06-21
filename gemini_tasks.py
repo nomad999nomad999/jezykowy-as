@@ -463,8 +463,10 @@ Student's latest response (transcribed from speech): "{user_input}"
 
 Analyze the student's latest response and return ONLY valid JSON (no markdown):
 {{
-  "score": 85, // Integer 0-100 based on grammatical correctness and naturalness
-  "feedback_pl": "Krótka ocena po polsku (np. Super! Poprawnie użyłeś słowa. Uważaj tylko na przedimek 'a' перед rzeczownikami.)",
+  "correctness_score": 85, // Integer 0-100 based on grammatical correctness and naturalness
+  "vocabulary_score": 100, // Integer 0-100 based on whether they used the target words/phrases from the list correctly in this turn. Set to 0 if none of the target words/phrases were used/attempted in this turn.
+  "score": 92, // Integer 0-100, overall score (average of correctness_score and vocabulary_score, or equal to correctness_score if vocabulary_score is 0)
+  "feedback_pl": "Krótka ocena po polsku (np. Super! Poprawnie użyłeś słowa. Uważaj tylko na przedimek 'a' przed rzeczownikami.)",
   "better_version": "A more natural/correct way a native speaker would say this in English...",
   "bot_reply": "The bot's next reply in English, keeping the conversation going...",
   "is_goal_achieved": false // true if the conversation goal has been completed (usually 3-4 turns total)
@@ -475,11 +477,36 @@ Analyze the student's latest response and return ONLY valid JSON (no markdown):
         s = raw.find("{"); e = raw.rfind("}")
         if s != -1 and e != -1:
             raw = raw[s:e+1]
-        return json.loads(raw)
+        data = json.loads(raw)
+        
+        # Ensure we have the split scores
+        c_score = data.get("correctness_score")
+        v_score = data.get("vocabulary_score")
+        
+        if c_score is None:
+            c_score = data.get("score", 90)
+        if v_score is None:
+            has_words = any(w.lower() in user_input.lower() for w in expected_phrases)
+            v_score = 100 if has_words else 0
+            
+        data["correctness_score"] = c_score
+        data["vocabulary_score"] = v_score
+        
+        # Recalculate/ensure overall score
+        if v_score == 0:
+            data["score"] = c_score
+        else:
+            data["score"] = (c_score + v_score) // 2
+            
+        return data
     except Exception as ex:
         print(f"evaluate_dialogue_turn fallback: {ex}")
+        has_words = any(w.lower() in user_input.lower() for w in expected_phrases)
+        v_score = 100 if has_words else 0
         return {
-            "score": 90,
+            "correctness_score": 90,
+            "vocabulary_score": v_score,
+            "score": 90 if v_score == 0 else (90 + v_score) // 2,
             "feedback_pl": "Dobra odpowiedź! Kontynuuj rozmowę.",
             "better_version": user_input,
             "bot_reply": "I see. Tell me more about it.",

@@ -18,7 +18,7 @@
 <div id="splash" class="splash">
   <div class="splash-logo">🃏</div>
   <h1 class="splash-title">Językowy AS</h1>
-  <p class="splash-sub" style="color:#818cf8;font-weight:600">by Adi</p>
+  <p class="splash-sub" style="color:#818cf8;font-weight:600">by Adi &nbsp;•&nbsp; <span style="color:var(--text3);font-size:11px">v30</span></p>
   <p class="splash-sub" style="margin-top:4px">Inteligentna nauka angielskiego</p>
   <div class="spinner" style="margin-top:16px"></div>
 </div>
@@ -37,6 +37,7 @@
       <button class="btn btn-primary" onclick="Auth.createAccount()">Utwórz konto</button>
       <button class="btn btn-outline" style="margin-top:6px" onclick="document.getElementById('newAccountForm').classList.add('hidden')">Anuluj</button>
     </div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:var(--text3)">Wersja aplikacji: <strong style="color:var(--green)">v30 (PWA)</strong></div>
   </div>
 </div>
 
@@ -298,6 +299,12 @@
           <span class="ex-name">Ciekawostka Dnia</span>
           <span class="ex-desc">Czytaj, poznaj słówka w kontekcie, odpowiedz na T/F</span>
           <span class="ex-xp">+6-26 XP/sesja</span>
+        </button>
+        <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(124, 58, 237, 0.12)); border-color: rgba(124, 58, 237, 0.35);" onclick="Exercise.start('rpg_adventure')">
+          <span class="ex-icon">⚔️</span>
+          <span class="ex-name">Przygoda RPG z AI</span>
+          <span class="ex-desc">Przeżyj interaktywną historię RPG podejmując decyzje słownikowe!</span>
+          <span class="ex-xp">+10-50 XP/przygoda</span>
         </button>
         <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(236, 72, 153, 0.12), rgba(245, 158, 11, 0.12)); border-color: rgba(236, 72, 153, 0.35);" onclick="Exercise.start('dialogue')">
           <span class="ex-icon">💬</span>
@@ -571,8 +578,9 @@
       
       <button class="btn btn-primary" onclick="UI.saveSettings()" style="width:100%;background:linear-gradient(135deg, var(--green), #06b6d4)">Zapisz ustawienia 💾</button>
     </div>
-    <div style="border-top:1px solid var(--border);padding-top:16px;font-size:12px;color:var(--text3)">
-      Ustawienia są zapisywane lokalnie w pamięci Twojej przeglądarki.
+    <div style="border-top:1px solid var(--border);padding-top:16px;font-size:12px;color:var(--text3);display:flex;justify-content:space-between;align-items:center">
+      <span>Ustawienia są zapisywane lokalnie w pamięci przeglądarki.</span>
+      <span style="font-weight:600;color:var(--green)">Wersja: v30</span>
     </div>
   </div>
 </div>

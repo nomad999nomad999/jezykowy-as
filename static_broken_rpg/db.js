@@ -384,8 +384,21 @@ Expected JSON Structure:
 const DB = {
   db: null,
   isInitialized: false,
+  _initPromise: null,
 
   async init() {
+    // Jeśli init już trwa, zwróć ten sam promise (zapobiega deadlockowi)
+    if (this._initPromise) return this._initPromise;
+    if (this.isInitialized) return;
+    this._initPromise = this._doInit();
+    try {
+      await this._initPromise;
+    } finally {
+      this._initPromise = null;
+    }
+  },
+
+  async _doInit() {
     if (this.isInitialized) return;
 
     console.log("Inicjalizacja Dexie...");
@@ -393,7 +406,6 @@ const DB = {
     // Tworzenie instancji Dexie
     this.db = new Dexie("EnglishMasterDB");
     
-    // Definiowanie czystych, uproszczonych indeksów (bez zbędnych pól)
     this.db.version(1).stores({
       users: "++id, &username",
       words: "++id, user_id, status, word, [user_id+word]",
@@ -437,42 +449,25 @@ const DB = {
       }
     }
 
-    // 2. Pierwsze uruchomienie - import słownika i postępów
+    // 2. Import postępów użytkowników (szybki — użytkownicy, słowa, sesje)
     const initFlag = "db_initialized_v4";
+    const cocaFlag = "db_coca_initialized_v4";
+
     if (!localStorage.getItem(initFlag)) {
-      console.log("Pierwsze uruchomienie: Rozpoczynanie importu danych...");
-
-      // A. Wczytanie słownika COCA
-      try {
-        const resCoca = await fetch("coca_words.json");
-        if (resCoca.ok) {
-          const cocaWords = await resCoca.json();
-          console.log(`Pobrano ${cocaWords.length} słów COCA z pliku JSON. Zapisywanie...`);
-          await this.db.coca_words.clear();
-          await this.db.coca_words.bulkPut(cocaWords);
-          console.log("Słownik COCA zapisany w IndexedDB.");
-        } else {
-          console.error("Nie udało się pobrać coca_words.json, status:", resCoca.status);
-        }
-      } catch (err) {
-        console.error("Błąd pobierania coca_words.json:", err);
-      }
-
-      // B. Wczytanie dotychczasowych postępów wszystkich użytkowników
+      console.log("Pierwsze uruchomienie: import postępów użytkowników...");
       try {
         const resProg = await fetch("initial_progress.json");
         if (resProg.ok) {
           const profiles = await resProg.json();
-          console.log("Pobrano plik z postępami. Rozpoczynanie importu...");
+          console.log("Pobrano plik z postępami. Importowanie...");
           
           for (const [userIdStr, data] of Object.entries(profiles)) {
             const uid = parseInt(userIdStr);
             if (!data.user) continue;
             
-            // Jeśli użytkownik już istnieje w bazie lokalnej, omijamy go, żeby nie nadpisać jego postępów!
             const localExists = await this.db.users.get(uid);
             if (localExists) {
-              console.log(`Użytkownik ${data.user.username} (ID: ${uid}) już istnieje lokalnie. Pomijam import.`);
+              console.log(`Użytkownik ${data.user.username} już istnieje. Pomijam.`);
               continue;
             }
 
@@ -484,39 +479,26 @@ const DB = {
               created_at: data.user.created_at || new Date().toISOString()
             });
 
-            // Słowa użytkownika
             if (data.words && data.words.length > 0) {
               const mappedWords = data.words.map(w => ({
-                word: w.word,
-                translation: w.translation,
-                status: w.status,
-                source: w.source || "coca",
-                user_id: uid,
+                word: w.word, translation: w.translation, status: w.status,
+                source: w.source || "coca", user_id: uid,
                 added_date: w.added_date || new Date().toISOString(),
                 last_reviewed: w.last_reviewed || null,
-                review_count: w.review_count || 0,
-                correct_count: w.correct_count || 0,
-                learned_at: w.learned_at || null,
-                frequency_rank: w.frequency_rank || 9999
+                review_count: w.review_count || 0, correct_count: w.correct_count || 0,
+                learned_at: w.learned_at || null, frequency_rank: w.frequency_rank || 9999
               }));
               await this.db.words.bulkAdd(mappedWords);
             }
 
-            // Sesje
             if (data.sessions && data.sessions.length > 0) {
-              const mappedSessions = data.sessions.map(s => ({
-                user_id: uid,
-                session_date: s.session_date,
-                exercise_type: s.exercise_type,
-                words_practiced: s.words_practiced,
-                correct: s.correct,
-                duration_sec: s.duration_sec,
-                xp_earned: s.xp_earned
-              }));
-              await this.db.sessions.bulkAdd(mappedSessions);
+              await this.db.sessions.bulkAdd(data.sessions.map(s => ({
+                user_id: uid, session_date: s.session_date, exercise_type: s.exercise_type,
+                words_practiced: s.words_practiced, correct: s.correct,
+                duration_sec: s.duration_sec, xp_earned: s.xp_earned
+              })));
             }
 
-            // Streak
             if (data.streak) {
               await this.db.streak.put({
                 user_id: uid,
@@ -526,48 +508,37 @@ const DB = {
               });
             }
 
-            // Odznaki
             if (data.achievements && data.achievements.length > 0) {
-              const mappedAch = data.achievements.map(a => ({
-                user_id: uid,
-                badge_id: a.badge_id,
+              await this.db.achievements.bulkAdd(data.achievements.map(a => ({
+                user_id: uid, badge_id: a.badge_id,
                 earned_at: a.earned_at || new Date().toISOString()
-              }));
-              await this.db.achievements.bulkAdd(mappedAch);
+              })));
             }
 
-            // Pominięte słowa
             if (data.skipped_coca_words && data.skipped_coca_words.length > 0) {
-              const mappedSkip = data.skipped_coca_words.map(s => ({
-                user_id: uid,
-                word: s.word,
+              await this.db.skipped_coca_words.bulkAdd(data.skipped_coca_words.map(s => ({
+                user_id: uid, word: s.word,
                 skipped_at: s.skipped_at || new Date().toISOString()
-              }));
-              await this.db.skipped_coca_words.bulkAdd(mappedSkip);
+              })));
             }
 
-            // SRS
+            // SRS — szybki import przez Map
             if (data.srs_cards && data.srs_cards.length > 0) {
-              const mappedSrs = data.srs_cards.map(s => ({
-                user_id: uid,
-                word_id: s.word_id,
-                word: s.word,
-                translation: s.translation,
-                ef: s.ef || 2.5,
-                interval: s.interval || 1,
-                repetitions: s.repetitions || 0,
-                next_review: s.next_review || new Date().toISOString().slice(0, 10),
-                last_review: s.last_review || null
-              }));
-              for (const card of mappedSrs) {
-                const localWord = await this.db.words.where({ user_id: uid, word: card.word }).first();
-                if (localWord) {
-                  card.word_id = localWord.id;
-                  await this.db.srs_cards.put(card);
-                }
-              }
+              const userWords = await this.db.words.where({ user_id: uid }).toArray();
+              const wordMap = new Map(userWords.map(w => [w.word, w.id]));
+              const validCards = data.srs_cards
+                .filter(s => wordMap.has(s.word))
+                .map(s => ({
+                  user_id: uid, word_id: wordMap.get(s.word), word: s.word,
+                  translation: s.translation, ef: s.ef || 2.5, interval: s.interval || 1,
+                  repetitions: s.repetitions || 0,
+                  next_review: s.next_review || new Date().toISOString().slice(0, 10),
+                  last_review: s.last_review || null
+                }));
+              if (validCards.length > 0) await this.db.srs_cards.bulkAdd(validCards);
             }
-            console.log("Pomyślnie zaimportowano postępy użytkownika: " + data.user.username);
+
+            console.log("Zaimportowano: " + data.user.username);
           }
 
           if (!localStorage.getItem("uid")) {
@@ -579,44 +550,51 @@ const DB = {
             }
           }
         } else {
-          console.error("Nie znaleziono initial_progress.json, status:", resProg.status);
+          console.error("Brak initial_progress.json, status:", resProg.status);
         }
       } catch (err) {
         console.error("Błąd importu postępów:", err);
       }
-
-      // Opcjonalne czyszczenie lokalnej bazy na wypadek starych kont (zostawiamy tylko Adrian i Madzia)
-      try {
-        const allLocalUsers = await this.db.users.toArray();
-        for (const u of allLocalUsers) {
-          const nameLower = u.username.toLowerCase();
-          if (nameLower !== "adrian" && nameLower !== "madzia") {
-            const uid = u.id;
-            console.log(`Usuwanie starego konta: ${u.username} (ID: ${uid})`);
-            await this.db.users.delete(uid);
-            await this.db.words.where({ user_id: uid }).delete();
-            await this.db.sessions.where({ user_id: uid }).delete();
-            await this.db.streak.where({ user_id: uid }).delete();
-            await this.db.achievements.where({ user_id: uid }).delete();
-            await this.db.skipped_coca_words.where({ user_id: uid }).delete();
-            await this.db.srs_cards.where({ user_id: uid }).delete();
-          }
-        }
-      } catch (err) {
-        console.error("Błąd podczas czyszczenia starych kont:", err);
-      }
-
       localStorage.setItem(initFlag, "1");
     }
 
-    // 3. Sprawdź i załaduj misje dzienne oraz słowo dnia na dzisiaj
+    // 3. Misje dzienne i słowo dnia
     const todayStr = new Date().toISOString().slice(0, 10);
     const uid = parseInt(localStorage.getItem("uid")) || 1;
     await this.ensureDailyQuests(uid, todayStr);
     await this.ensureWordOfDay(todayStr);
 
+    // ★ KLUCZOWE: ustaw isInitialized = true ZANIM zacznie się wolny import COCA!
     this.isInitialized = true;
-    console.log("Lokalna baza danych gotowa!");
+    console.log("Baza gotowa! (konta dostępne, COCA ładuje się w tle)");
+
+    // 4. Import słownika COCA — w TLE, nie blokuje ładowania aplikacji
+    if (!localStorage.getItem(cocaFlag)) {
+      this._importCocaInBackground();
+    }
+  },
+
+  // Import 3000 słów COCA w tle — nie blokuje UI
+  async _importCocaInBackground() {
+    try {
+      const resCoca = await fetch("coca_words.json");
+      if (!resCoca.ok) { console.error("Brak coca_words.json"); return; }
+      const cocaWords = await resCoca.json();
+      console.log(`COCA: pobrano ${cocaWords.length} słów. Zapisywanie w tle...`);
+      // Zapis w partiach po 300 słów — nie zawiesza IndexedDB
+      const chunkSize = 300;
+      await this.db.coca_words.clear();
+      for (let i = 0; i < cocaWords.length; i += chunkSize) {
+        const chunk = cocaWords.slice(i, i + chunkSize);
+        await this.db.coca_words.bulkPut(chunk);
+        // Krótka pauza po każdej partii — zwalnia wątek UI
+        await new Promise(r => setTimeout(r, 10));
+      }
+      localStorage.setItem("db_coca_initialized_v4", "1");
+      console.log("COCA: słownik zapisany w tle!");
+    } catch(err) {
+      console.error("COCA import error:", err);
+    }
   },
 
   // Pomocniczy generator seeda deterministycznego
@@ -987,6 +965,7 @@ const DB = {
     const params = urlObj.searchParams;
     const userId = parseInt(localStorage.getItem("uid")) || 1;
 
+    // Jeśli baza jeszcze się inicjalizuje (init trwa), poczekaj na ten sam promise
     if (!this.isInitialized) {
       await this.init();
     }
@@ -2279,28 +2258,11 @@ const DB = {
           choices: stepData.choices
         };
       }
-      // Fallback: forward unmatched routes to Flask server
-      try {
-        const headers = { 'X-User-Id': localStorage.getItem('uid') || '' };
-        if (method === "POST") {
-          headers['Content-Type'] = 'application/json';
-          const res = await window.fetch(url, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(data)
-          });
-          return await res.json();
-        } else {
-          const res = await window.fetch(url, {
-            method: 'GET',
-            headers: headers
-          });
-          return await res.json();
-        }
-      } catch (fetchErr) {
-        console.warn(`Unmatched route fallback failed for ${method} ${path}:`, fetchErr);
-        return { error: `Not Found/Offline: ${method} ${path}` };
-      }
+
+      return { error: `Not Found: ${method} ${path}` };
+
+
+
     } catch (err) {
       console.error(`Błąd wirtualnego API: ${method} ${path}:`, err);
       return { error: "Internal Database Error" };
@@ -2309,8 +2271,6 @@ const DB = {
 };
 
 const Backup = {
-  version: "v30",
-
   async export() {
     try {
       if (!DB.db) {
@@ -2320,7 +2280,7 @@ const Backup = {
       
       const backupData = {
         app: "Językowy AS",
-        version: this.version,
+        version: "1.0",
         timestamp: new Date().toISOString(),
         tables: {}
       };
@@ -2377,17 +2337,9 @@ const Backup = {
           return;
         }
         
-        const backupVersion = backupData.version || "1.0";
-        let versionWarning = "";
-        if (backupVersion !== this.version) {
-          versionWarning = `⚠️ Uwaga: Plik kopii zapasowej pochodzi z wersji ${backupVersion}, natomiast bieżąca wersja aplikacji to ${this.version}.\n`;
-        }
-        
         const confirmRestore = confirm(
           `Czy na pewno chcesz wczytać kopię zapasową z dnia ${new Date(backupData.timestamp).toLocaleString()}?\n` +
-          `Wersja kopii zapasowej: ${backupVersion}\n` +
-          versionWarning +
-          `⚠️ Bieżące dane w tej przeglądarce zostaną zastąpione danymi z pliku!`
+          `⚠️ Uwaga: Bieżące dane w tej przeglądarce zostaną zastąpione danymi z pliku!`
         );
         
         if (!confirmRestore) {

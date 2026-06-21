@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#0f0f1a">
+<script>
+// Wymuś usunięcie starego Service Workera i wyczyszczenie cache (jednorazowe)
+if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_cleaned_v33')) {
+  sessionStorage.setItem('sw_cleaned_v33', '1');
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.unregister());
+  });
+  if (window.caches) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  }
+}
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Językowy AS</title>
 <link rel="manifest" href="manifest.json">
@@ -305,12 +317,6 @@
           <span class="ex-name">Przygoda RPG z AI</span>
           <span class="ex-desc">Przeżyj interaktywną historię RPG podejmując decyzje słownikowe!</span>
           <span class="ex-xp">+10-50 XP/przygoda</span>
-        </button>
-        <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(236, 72, 153, 0.12), rgba(245, 158, 11, 0.12)); border-color: rgba(236, 72, 153, 0.35);" onclick="Exercise.start('dialogue')">
-          <span class="ex-icon">💬</span>
-          <span class="ex-name">Symulator Dialogu (Głosowy)</span>
-          <span class="ex-desc">Rozmawiaj na głos z AI, trenuj wymowę i naturalność!</span>
-          <span class="ex-xp">+8 XP/wypowiedź</span>
         </button>
       </div>
 
