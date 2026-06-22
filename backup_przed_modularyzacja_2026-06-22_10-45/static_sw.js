@@ -1,7 +1,8 @@
-const CACHE = 'eng-v34';
+const CACHE = 'eng-v33';
 const ASSETS = [
   './',
   'index.html',
+  'style.css',
   'app.js',
   'ui.js',
   'auth.js',
@@ -10,25 +11,7 @@ const ASSETS = [
   'coca_words.json',
   'initial_progress.json',
   'manifest.json',
-  'icon.png',
-  'css/base.css',
-  'css/home.css',
-  'css/classify.css',
-  'css/exercise-quick.css',
-  'css/exercise-builder.css',
-  'css/exercise-fact.css',
-  'css/exercise-rpg.css',
-  'css/exercise-dialogue.css',
-  'js/exercise-core.js',
-  'js/exercise-basic.js',
-  'js/exercise-supquiz.js',
-  'js/exercise-srs.js',
-  'js/exercise-builder.js',
-  'js/exercise-fact.js',
-  'js/exercise-dialogue.js',
-  'js/exercise-handsfree.js',
-  'js/exercise-rpg.js',
-  'js/home.js'
+  'icon.png'
 ];
 
 self.addEventListener('install', e => {
