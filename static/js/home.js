@@ -1,4 +1,4 @@
-﻿const COCA_LEVELS = const COCA_LEVELS = [
+const COCA_LEVELS = const COCA_LEVELS = [
   { words:100,  stage:'🟩', rank:'Odkrywca',         pct:'~50%',  power:'Rozpoznajesz strukturę zdania. Przetrwasz na lotnisku, zamówisz kawę i zapytasz o drogę.' },
   { words:300,  stage:'🟩', rank:'Komunikator',       pct:'~60%',  power:'Opisujesz siebie i rodzinę. W obcym kraju nie zginiesz, a sprzedawca zrozumie czego chcesz.' },
   { words:500,  stage:'🟩', rank:'Operator',          pct:'~68%',  power:'Robisz zakupy online, rozumiesz proste instrukcje, rezerwujesz hotel przez telefon.' },
@@ -126,7 +126,7 @@ const Home = {
         questsEl.innerHTML = quests.map(q => {
           const pct = Math.min(100, Math.round(q.progress / q.target * 100));
           const isDone = q.completed;
-          return `<div class="quest-card ${isDone ? 'quest-done' : ''}">
+          return `<div class="quest-card ${isDone ? 'quest-done' : ''}" onclick="Home.handleQuestClick('${q.quest_type}')" style="cursor: pointer;" title="Kliknij, aby przejść do zadania">
             <div class="quest-top">
               <span class="quest-icon">${q.icon}</span>
               <div class="quest-info">
@@ -335,6 +335,32 @@ const Home = {
       UI.goTo('classify');
     } else {
       Exercise.start('super_quiz');
+    }
+  },
+
+  handleQuestClick(questType) {
+    if (!questType) return;
+    switch (questType) {
+      case 'classify':
+      case 'promote_words':
+        UI.goTo('classify');
+        break;
+      case 'session':
+        UI.goTo('exercises');
+        break;
+      case 'speed_round':
+      case 'srs':
+      case 'match_pairs':
+      case 'fill_blank':
+      case 'super_quiz':
+      case 'quick_challenge':
+      case 'daily_fact':
+      case 'sentence_builder':
+      case 'hands_free':
+        Exercise.start(questType);
+        break;
+      default:
+        UI.goTo('exercises');
     }
   },
 

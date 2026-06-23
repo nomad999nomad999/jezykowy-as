@@ -738,6 +738,12 @@ def _ensure_quests_table(conn):
         target INTEGER, progress INTEGER DEFAULT 0,
         completed INTEGER DEFAULT 0, xp_reward INTEGER
     )""")
+    # Migracja dla starszych wersji bazy
+    if not _col_exists(conn, "daily_quests", "icon"):
+        conn.execute("ALTER TABLE daily_quests ADD COLUMN icon TEXT DEFAULT '🎯'")
+    if not _col_exists(conn, "daily_quests", "xp_reward"):
+        conn.execute("ALTER TABLE daily_quests ADD COLUMN xp_reward INTEGER DEFAULT 50")
+
 
 def get_daily_quests(user_id=1):
     """Zwraca misje na dzis. Tworzy jesli nie istnieja."""

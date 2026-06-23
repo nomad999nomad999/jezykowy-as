@@ -34,5 +34,5 @@ echo.
 echo Nacisnij Ctrl+C aby zatrzymac.
 echo.
 
-.venv\Scripts\python app.py
+"%~dp0.venv\Scripts\python.exe" app.py
 pause
