@@ -1,4 +1,4 @@
-const COCA_LEVELS = const COCA_LEVELS = [
+const COCA_LEVELS = [
   { words:100,  stage:'🟩', rank:'Odkrywca',         pct:'~50%',  power:'Rozpoznajesz strukturę zdania. Przetrwasz na lotnisku, zamówisz kawę i zapytasz o drogę.' },
   { words:300,  stage:'🟩', rank:'Komunikator',       pct:'~60%',  power:'Opisujesz siebie i rodzinę. W obcym kraju nie zginiesz, a sprzedawca zrozumie czego chcesz.' },
   { words:500,  stage:'🟩', rank:'Operator',          pct:'~68%',  power:'Robisz zakupy online, rozumiesz proste instrukcje, rezerwujesz hotel przez telefon.' },
@@ -11,9 +11,8 @@ const COCA_LEVELS = const COCA_LEVELS = [
   { words:2500, stage:'🟥', rank:'Pożeracz Książek',  pct:'~92%',  power:'Czytasz kryminały i biografie, oglądasz Netflixa bez ciągłego zaglądania do słownika.' },
   { words:3000, stage:'🟥', rank:'Elita Językowa',    pct:'~95%',  power:'Rozumiesz ironię i dwuznaczności. Bronisz swojego zdania w zażartej dyskusji.' },
   { words:4000, stage:'🟥', rank:'Erudyta',           pct:'~98%',  power:'Pełna swoboda akademicka. Rozumiesz literaturę piękną, podcasty naukowe, niuanse polityczne.' },
-];;
+];
 
-const Home = {
 const Home = {
   _tutStep: 0,
   _levelsOpen: false,
