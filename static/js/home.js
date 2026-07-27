@@ -147,6 +147,37 @@ const Home = {
       }
     } catch(e) {}
 
+    // Daily XP History on Home
+    try {
+      const history = await API.get('/api/stats/history?days=7');
+      const histEl = document.getElementById('homeActivityHistory');
+      const todayXpEl = document.getElementById('homeTodayXp');
+      if (histEl && history) {
+        if (!history.length) {
+          histEl.innerHTML = '<p style="text-align:center;color:var(--text3);font-size:13px">Brak danych — zrób pierwsze ćwiczenie dzisiaj!</p>';
+        } else {
+          const sorted = [...history].reverse();
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const todayEntry = history.find(h => h.day === todayIso);
+          if (todayXpEl) todayXpEl.textContent = `Dzisiaj: +${todayEntry ? todayEntry.xp || 0 : 0} XP`;
+          
+          const maxXp = Math.max(...sorted.map(h => h.xp || 1), 1);
+          histEl.innerHTML = sorted.map(h => {
+            const xp = h.xp || 0;
+            const barH = Math.max(10, Math.round((xp / maxXp) * 55));
+            const color = xp >= 100 ? 'var(--green)' : xp >= 30 ? 'var(--yellow)' : xp > 0 ? 'var(--red)' : 'var(--border)';
+            const day = h.day ? h.day.slice(5) : '';
+            const label = xp > 0 ? xp + ' XP' : '—';
+            return `<div class="hist-bar-wrap" title="${h.day}: ${xp} XP">
+              <div class="hist-acc">${label}</div>
+              <div class="hist-bar" style="height:${barH}px;background:${color}"></div>
+              <div class="hist-label">${day}</div>
+            </div>`;
+          }).join('');
+        }
+      }
+    } catch(e) {}
+
     // Render COCA levels
     this.renderLevels(stats?.znam || 0);
 

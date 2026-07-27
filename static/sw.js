@@ -1,57 +1,43 @@
-const CACHE = 'eng-2026-07-27-v6';
+const CACHE = 'eng-2026-07-27-v8';
 const ASSETS = [
   './',
   'index.html',
-  'app.js',
+  'style.css',
   'ui.js',
-  'auth.js',
-  'dexie.min.js',
   'db.js',
-  'coca_words.json',
-  'initial_progress.json',
+  'auth.js',
+  'app.js',
   'manifest.json',
   'icon.png',
-  'css/base.css',
-  'css/home.css',
-  'css/classify.css',
-  'css/exercise-quick.css',
-  'css/exercise-builder.css',
-  'css/exercise-fact.css',
-  'css/exercise-rpg.css',
-  'css/exercise-dialogue.css',
-  'js/exercise-core.js',
-  'js/exercise-basic.js',
-  'js/exercise-supquiz.js',
-  'js/exercise-srs.js',
-  'js/exercise-builder.js',
-  'js/exercise-fact.js',
-  'js/exercise-dialogue.js',
-  'js/exercise-handsfree.js',
-  'js/exercise-rpg.js',
-  'js/home.js'
+  'dexie.min.js'
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(ASSETS))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE).map(k => caches.delete(k))
-    ))
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', e => {
-  // Ignoruj wirtualne żądania API
-  if (e.request.url.includes('/api/')) return;
-  
+  if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(resp => {
+        if (resp.status === 200 && e.request.url.startsWith('http')) {
+          const cln = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, cln));
+        }
+        return resp;
+      });
+    }).catch(() => caches.match('index.html'))
   );
 });
