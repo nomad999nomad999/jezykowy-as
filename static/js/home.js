@@ -1,16 +1,21 @@
 const COCA_LEVELS = [
   { words:100,  stage:'🟩', rank:'Odkrywca',         pct:'~50%',  power:'Rozpoznajesz strukturę zdania. Przetrwasz na lotnisku, zamówisz kawę i zapytasz o drogę.' },
   { words:300,  stage:'🟩', rank:'Komunikator',       pct:'~60%',  power:'Opisujesz siebie i rodzinę. W obcym kraju nie zginiesz, a sprzedawca zrozumie czego chcesz.' },
-  { words:500,  stage:'🟩', rank:'Operator',          pct:'~68%',  power:'Robisz zakupy online, rozumiesz proste instrukcje, rezerwujesz hotel przez telefon.' },
-  { words:750,  stage:'🟨', rank:'Lokalny Bywalec',   pct:'~75%',  power:'Zaczynasz small talk. Potrafisz powiedzieć co robiłeś w weekend i wyrazić emocje.' },
-  { words:1000, stage:'🟨', rank:'Autonomiczny',      pct:'~80%',  power:'Komunikacyjna niezależność! Znasz 80% słów w codziennych rozmowach. Przełom B1.' },
-  { words:1300, stage:'🟨', rank:'Konsument Mediów',  pct:'~82%',  power:'Rozumiesz memy, TikTok, posty na Insta i nieskomplikowane artykuły na portalach.' },
-  { words:1500, stage:'🟦', rank:'Obywatel Świata',   pct:'~85%',  power:'Naturalna dyskusja o marzeniach, planach i opiniach. Mowa staje się płynna — bez tłumaczenia w głowie.' },
-  { words:1750, stage:'🟦', rank:'Ekspert Contentu',  pct:'~87%',  power:'Oglądasz zagranicznych YouTuberów bez napisów i nadążasz za ich myślami.' },
-  { words:2000, stage:'🟦', rank:'Biznesmen',         pct:'~90%',  power:'Piszesz maile w pracy, uczestniczysz w spotkaniach międzynarodowych, prowadzisz negocjacje.' },
-  { words:2500, stage:'🟥', rank:'Pożeracz Książek',  pct:'~92%',  power:'Czytasz kryminały i biografie, oglądasz Netflixa bez ciągłego zaglądania do słownika.' },
-  { words:3000, stage:'🟥', rank:'Elita Językowa',    pct:'~95%',  power:'Rozumiesz ironię i dwuznaczności. Bronisz swojego zdania w zażartej dyskusji.' },
-  { words:4000, stage:'🟥', rank:'Erudyta',           pct:'~98%',  power:'Pełna swoboda akademicka. Rozumiesz literaturę piękną, podcasty naukowe, niuanse polityczne.' },
+  { words:600,  stage:'🟩', rank:'Operator',          pct:'~70%',  power:'Robisz zakupy online, rozumiesz proste instrukcje, rezerwujesz hotel przez telefon.' },
+  { words:900,  stage:'🟨', rank:'Lokalny Bywalec',   pct:'~78%',  power:'Zaczynasz small talk. Potrafisz powiedzieć co robiłeś w weekend i wyrazić emocje.' },
+  { words:1200, stage:'🟨', rank:'Autonomiczny',      pct:'~83%',  power:'Komunikacyjna niezależność! Znasz 83% słów w codziennych rozmowach. Przełom B1.' },
+  { words:1500, stage:'🟨', rank:'Konsument Mediów',  pct:'~86%',  power:'Rozumiesz memy, TikTok, posty na Insta i artykuły na portalach bez słownika.' },
+  { words:1650, stage:'🟦', rank:'Analityk Kontekstu', pct:'~88%',  power:'Oglądasz zagraniczny YouTube bez napisów. Dobrze wyłapujesz sens zdań.' },
+  { words:1800, stage:'🟦', rank:'Obywatel Świata',   pct:'~90%',  power:'Oglądasz filmy i seriale. Naturalna dyskusja o planach i opiniach.' },
+  { words:1950, stage:'🟦', rank:'Strateg Językowy',  pct:'~91%',  power:'Przełom B2+! Posiadasz szeroki zasób synonimów i zwrotów konwersacyjnych.' },
+  { words:2100, stage:'🟦', rank:'Biznesmen',         pct:'~92%',  power:'Piszesz maile w pracy, uczestniczysz w spotkaniach międzynarodowych, prowadzisz negocjacje.' },
+  { words:2250, stage:'🟦', rank:'Ekspert Contentu',  pct:'~93.5%',power:'Czytasz biografie, poradniki i artykuły naukowe. Rozumiesz niuanse.' },
+  { words:2400, stage:'🟥', rank:'Krytyk Tekstu',     pct:'~94.5%',power:'Czytasz felietony prasowe i eseje. Trafnie wyłapujesz kontekst.' },
+  { words:2550, stage:'🟥', rank:'Pożeracz Książek',  pct:'~95.5%',power:'Czytasz kryminały i powieści w oryginale, oglądasz Netflixa bez słownika.' },
+  { words:2700, stage:'🟥', rank:'Retor & Dyskutant', pct:'~96.5%',power:'Zawiła ironia, zażarte debaty i obrona własnych poglądów.' },
+  { words:2850, stage:'🟥', rank:'Słowotwórca',       pct:'~97.5%',power:'Swobodne operowanie aluzjami, idiomami i humorem słownym.' },
+  { words:3000, stage:'👑', rank:'Elita COCA',         pct:'~98%',  power:'98% codziennego języka — pełny sukces komunikacyjny!' },
+  { words:3300, stage:'👑', rank:'Erudyta',           pct:'~99%',  power:'Pełna swoboda akademicka. Podcasty naukowe, debaty i niuanse polityczne.' },
 ];
 
 const Home = {
@@ -356,6 +361,8 @@ const Home = {
       case 'daily_fact':
       case 'sentence_builder':
       case 'hands_free':
+      case 'rpg_adventure':
+      case 'dialogue':
         Exercise.start(questType);
         break;
       default:

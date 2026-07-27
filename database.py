@@ -280,7 +280,12 @@ def update_status(word_id, new_status, user_id=1):
         # Milestone bonusy (jednorazowe) – rosnące z progiem
         learned_count = _get_learned_count(user_id)
         milestone = None
-        for m, bonus in [(10,500),(25,1500),(50,3000),(100,7500),(200,15000),(500,50000),(1000,100000)]:
+        for m, bonus in [
+            (10, 100), (25, 200), (50, 350), (100, 500), (300, 1000), (600, 1500),
+            (900, 2000), (1200, 2500), (1500, 3000), (1650, 3250), (1800, 3500),
+            (1950, 3750), (2100, 4000), (2250, 4250), (2400, 4500), (2550, 4750),
+            (2700, 5000), (2850, 5250), (3000, 6000), (3300, 7000)
+        ]:
             if learned_count == m:
                 add_xp(user_id, bonus)
                 milestone = {"count": m, "bonus": bonus}
@@ -704,6 +709,8 @@ def _get_daily_quests_def(today_str):
         {"type": "super_quiz",      "desc": "Ukoncz Super-Quiz",        "target": 1, "xp": 75, "icon": "🏆"},
         {"type": "quick_challenge", "desc": "Ukoncz Szybkie Wyzwanie",  "target": 1, "xp": 60, "icon": "⏱️"},
         {"type": "daily_fact",      "desc": "Ukoncz Ciekawostke Dnia",  "target": 1, "xp": 70, "icon": "🧪"},
+        {"type": "rpg_adventure",   "desc": "Ukoncz Przygode RPG z AI", "target": 1, "xp": 85, "icon": "⚔️"},
+        {"type": "dialogue",        "desc": "Ukoncz Symulator Dialogu", "target": 1, "xp": 85, "icon": "💬"},
         {"type": "sentence_builder","desc": "Ukoncz Budowanie zdan",    "target": 1, "xp": 60, "icon": "🔤"},
         {"type": "hands_free",      "desc": "Ukoncz Audionauke",        "target": 1, "xp": 50, "icon": "🎧"},
         {"type": "promote_words",   "desc": "Przenies 3 slowa do Poznalem", "target": 3, "xp": 100, "icon": "🎓"},
@@ -794,21 +801,35 @@ def update_quest_progress(user_id, quest_type, amount=1):
 
 # ─── ACHIEVEMENTS / BADGES ────────────────────────────────────────────────────
 _ALL_BADGES = [
-    ("first_step",       "🎉", "Pierwszy krok",       "Sklasyfikuj pierwsze slowo"),
-    ("classified_50",    "📚", "Piecdziesiatka",       "50 slow sklasyfikowanych"),
-    ("classified_200",   "📖", "Bibliofil",            "200 slow sklasyfikowanych"),
-    ("classified_500",   "🎓", "Slownikarz",           "500 slow sklasyfikowanych"),
-    ("learned_10",       "⭐", "Pierwsze kroki",       "10 slow w kategorii Znam"),
-    ("learned_100",      "🏅", "Setka",                "100 slow w kategorii Znam"),
-    ("learned_500",      "🏆", "Polfinalista",         "500 slow w kategorii Znam"),
-    ("top100_complete",  "👑", "TOP 100",              "Znasz wszystkie slowa z TOP 100 COCA"),
-    ("streak_3",         "🔥", "Seria 3 dni",          "3 dni nauki z rzedu"),
-    ("streak_7",         "🔥🔥", "Tygodnik",           "7 dni nauki z rzedu"),
-    ("streak_30",        "💎", "Miesiac nauki",        "30 dni nauki z rzedu"),
-    ("early_bird",       "🌅", "Ranny ptaszek",        "Nauka przed godz. 8:00"),
-    ("night_owl",        "🌙", "Nocna sowa",           "Nauka po godz. 23:00"),
-    ("perfect_session",  "🎯", "Perfekcja",            "100% poprawnych w sesji (min 5 slow)"),
-    ("speed_ace",        "⚡", "Blyskawtca",           "20+ poprawnych w Speed Round"),
+    ("first_step",       "🎉", "Pierwszy krok",       "Sklasyfikuj pierwsze słowo"),
+    ("classified_50",    "📚", "Pięćdziesiątka",     "50 słów sklasyfikowanych"),
+    ("classified_200",   "📖", "Bibliofil",          "200 słów sklasyfikowanych"),
+    ("classified_500",   "🎓", "Słownikarz",         "500 słów sklasyfikowanych"),
+    ("learned_10",       "⭐", "Pierwsze kroki",     "10 słów w kategorii Znam"),
+    ("learned_100",      "🏅", "Setka",              "100 słów w kategorii Znam"),
+    ("learned_300",      "🥉", "Komunikator",        "300 słów w kategorii Znam"),
+    ("learned_600",      "🥈", "Operator",           "600 słów w kategorii Znam"),
+    ("learned_900",      "🥇", "Lokalny Bywalec",    "900 słów w kategorii Znam"),
+    ("learned_1200",     "🎖️", "Autonomiczny",      "1200 słów w kategorii Znam"),
+    ("learned_1500",     "🌐", "Konsument Mediów",   "1500 słów w kategorii Znam"),
+    ("learned_1650",     "🔍", "Analityk Kontekstu", "1650 słów w kategorii Znam"),
+    ("learned_1800",     "📺", "Obywatel Świata",    "1800 słów w kategorii Znam"),
+    ("learned_1950",     "🎯", "Strateg Językowy",   "1950 słów w kategorii Znam"),
+    ("learned_2100",     "💼", "Biznesmen",          "2100 słów w kategorii Znam"),
+    ("learned_2250",     "📑", "Ekspert Contentu",   "2250 słów w kategorii Znam"),
+    ("learned_2400",     "✍️", "Krytyk Tekstu",     "2400 słów w kategorii Znam"),
+    ("learned_2550",     "📚", "Pożeracz Książek",   "2550 słów w kategorii Znam"),
+    ("learned_2700",     "🗣️", "Retor & Dyskutant",  "2700 słów w kategorii Znam"),
+    ("learned_2850",     "✨", "Słowotwórca",        "2850 słów w kategorii Znam"),
+    ("learned_3000",     "👑", "Elita COCA",         "3000 słów w kategorii Znam"),
+    ("top100_complete",  "👑", "TOP 100",            "Znasz wszystkie słowa z TOP 100 COCA"),
+    ("streak_3",         "🔥", "Seria 3 dni",        "3 dni nauki z rzędu"),
+    ("streak_7",         "🔥🔥", "Tygodnik",         "7 dni nauki z rzędu"),
+    ("streak_30",        "💎", "Miesiąc nauki",      "30 dni nauki z rzędu"),
+    ("early_bird",       "🌅", "Ranny ptaszek",      "Nauka przed godz. 8:00"),
+    ("night_owl",        "🌙", "Nocna sowa",         "Nauka po godz. 23:00"),
+    ("perfect_session",  "🎯", "Perfekcja",          "100% poprawnych w sesji (min 5 słów)"),
+    ("speed_ace",        "⚡", "Błyskawica",         "20+ poprawnych w Speed Round"),
 ]
 
 def _ensure_achievements_table(conn):
@@ -846,7 +867,21 @@ def check_and_award_badges(user_id=1, session_correct=None, session_words=None, 
             "classified_500":  classified >= 500,
             "learned_10":      znam >= 10,
             "learned_100":     znam >= 100,
-            "learned_500":     znam >= 500,
+            "learned_300":     znam >= 300,
+            "learned_600":     znam >= 600,
+            "learned_900":     znam >= 900,
+            "learned_1200":    znam >= 1200,
+            "learned_1500":    znam >= 1500,
+            "learned_1650":    znam >= 1650,
+            "learned_1800":    znam >= 1800,
+            "learned_1950":    znam >= 1950,
+            "learned_2100":    znam >= 2100,
+            "learned_2250":    znam >= 2250,
+            "learned_2400":    znam >= 2400,
+            "learned_2550":    znam >= 2550,
+            "learned_2700":    znam >= 2700,
+            "learned_2850":    znam >= 2850,
+            "learned_3000":    znam >= 3000,
             "top100_complete": top100_total > 0 and top100_known >= top100_total,
             "streak_3":        streak_val >= 3,
             "streak_7":        streak_val >= 7,
@@ -869,6 +904,7 @@ def check_and_award_badges(user_id=1, session_correct=None, session_words=None, 
 
 def get_achievements(user_id=1):
     """Zwraca pelna liste odznak z informacja czy zdobyta."""
+    check_and_award_badges(user_id)
     with get_conn() as conn:
         _ensure_achievements_table(conn)
         earned_map = {r["badge_id"]: r["earned_at"] for r in conn.execute(

@@ -25,7 +25,7 @@
 <div id="splash" class="splash">
   <div class="splash-logo">🃏</div>
   <h1 class="splash-title">Językowy AS</h1>
-  <p class="splash-sub" style="color:#818cf8;font-weight:600">by Adi &nbsp;•&nbsp; <span style="color:var(--text3);font-size:11px">2026-06-23-15:06</span></p>
+  <p class="splash-sub" style="color:#818cf8;font-weight:600">by Adi &nbsp;•&nbsp; <span style="color:var(--text3);font-size:11px">2026-07-27</span></p>
   <p class="splash-sub" style="margin-top:4px">Inteligentna nauka angielskiego</p>
   <div class="spinner" style="margin-top:16px"></div>
 </div>
@@ -44,7 +44,7 @@
       <button class="btn btn-primary" onclick="Auth.createAccount()">Utwórz konto</button>
       <button class="btn btn-outline" style="margin-top:6px" onclick="document.getElementById('newAccountForm').classList.add('hidden')">Anuluj</button>
     </div>
-    <div style="text-align:center;margin-top:20px;font-size:11px;color:var(--text3)">Wersja aplikacji: <strong style="color:var(--green)">2026-06-23-15:06 (PWA)</strong></div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:var(--text3)">Wersja aplikacji: <strong style="color:var(--green)">2026-07-27 (PWA)</strong></div>
   </div>
 </div>
 
@@ -264,7 +264,8 @@
         <button class="tab" onclick="Lists.switch(this,'ZNAM')">✅ Znam</button>
         <button class="tab tab-learned" id="tabLearned" onclick="Lists.showLearned(this)">🎓 Poznałem <span id="learnedCount" class="learned-badge">…</span></button>
       </div>
-      <div class="search-wrap"><input id="searchInput" class="search-input" type="text" placeholder="🔍 Szukaj słowa…" oninput="Lists.search(this.value)"></div>
+      <div class="search-wrap" style="display:flex;gap:8px;align-items:center"><input id="searchInput" class="search-input" type="text" placeholder="🔍 Szukaj słowa…" oninput="Lists.search(this.value)" style="flex:1"><button class="btn btn-outline" onclick="Lists.exportPDF()" title="Wygeneruj raport PDF" style="width:auto;padding:8px 12px;white-space:nowrap;font-size:13px;background:rgba(99,102,241,0.15);border-color:#6366f1;color:#818cf8;font-weight:700">📄 PDF</button></div>
+      <button class="btn btn-primary" onclick="Lists.exportPDF()" style="margin-top:10px;width:100%;font-weight:700;background:linear-gradient(135deg, #6366f1, #8b5cf6);padding:12px;border-radius:8px">🖨️ Pobierz listy słówek w pliku PDF</button>
       <div id="wordsList" class="words-list"></div>
     </section>
 
@@ -363,12 +364,12 @@
             <h2 class="tut-title">Twoje Supermoc!</h2>
             <p class="tut-body" style="margin-bottom:12px">Każde nauczone słowo to nowa umiejętność. Oto co zyskujesz:</p>
             <div class="tut-levels">
-              <div class="tl-row">🟩 <strong>100 słów</strong> → Przeżyjesz na lotnisku i w hotelu</div>
-              <div class="tl-row">🟩 <strong>500 słów</strong> → Rezerwujesz hotel przez telefon</div>
-              <div class="tl-row">🟨 <strong>1 000 słów</strong> → 80% codziennych rozmów — Przełom B1!</div>
-              <div class="tl-row">🟦 <strong>1 500 słów</strong> → Płynna dyskusja, bez tłumaczenia w głowie</div>
-              <div class="tl-row">🟦 <strong>2 000 słów</strong> → Praca i negocjacje po angielsku</div>
-              <div class="tl-row">🟥 <strong>3 000 słów</strong> → 95% tekstów — Elita językowa!</div>
+              <div class="tl-row">🟩 <strong>100 słów</strong> → Przeżyjesz na lotnisku i w restauracji</div>
+              <div class="tl-row">🟩 <strong>600 słów</strong> → Rezerwacje i zakupy bez stresa</div>
+              <div class="tl-row">🟨 <strong>1 200 słów</strong> → 83% codziennej mowy — Przełom B1!</div>
+              <div class="tl-row">🟦 <strong>1 800 słów</strong> → YouTube i filmy bez napisów — Płynny B2!</div>
+              <div class="tl-row">🟦 <strong>2 400 słów</strong> → Czytanie biogafii i artykułów branżowych</div>
+              <div class="tl-row">🟥 <strong>3 000 słów</strong> → 97% codziennych tekstów — Elita COCA!</div>
             </div>
           </div>
 
@@ -587,7 +588,7 @@
     </div>
     <div style="border-top:1px solid var(--border);padding-top:16px;font-size:12px;color:var(--text3);display:flex;justify-content:space-between;align-items:center">
       <span>Ustawienia są zapisywane lokalnie w pamięci przeglądarki.</span>
-      <span style="font-weight:600;color:var(--green)">Wersja: 2026-06-22-14:15</span>
+      <span style="font-weight:600;color:var(--green)">Wersja: 2026-07-27</span>
     </div>
   </div>
 </div>

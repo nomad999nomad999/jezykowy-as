@@ -49,4 +49,12 @@ echo.
 echo Ctrl+C aby zatrzymac.
 echo.
 
-ngrok http 5000
+:: Opcjonalna stała domena ngrok (np. set "NGROK_DOMAIN=twoja-domena.ngrok-free.app")
+set "NGROK_DOMAIN=thesaurus-fetal-vagabond.ngrok-free.dev"
+
+if not "%NGROK_DOMAIN%"=="" (
+    echo Uruchamianie ze stala domena: https://%NGROK_DOMAIN%
+    ngrok http --url=https://%NGROK_DOMAIN% 5000
+) else (
+    ngrok http 127.0.0.1:5000
+)
