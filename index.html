@@ -123,6 +123,17 @@
         <div class="adi-msg" id="adiHomeMsg" style="margin-top:10px">🃏 <em>Adi jest ciekawy ile nauczysz się dzisiaj!</em></div>
       </div>
 
+      <!-- 7-Day Streak Tracker -->
+      <div class="streak-tracker-card" id="homeStreakTracker">
+        <div class="stk-hdr">
+          <div class="stk-title">🔥 Seria: <strong id="streakCount">0</strong> dni z rzędu</div>
+          <div class="stk-status-badge status-warning" id="streakTodayStatus">⚡ Sprawdzanie aktywności...</div>
+        </div>
+        <div class="stk-days-grid" id="streakDaysGrid">
+          <!-- Render 7 day pills: Mon - Sun -->
+        </div>
+      </div>
+
       <!-- Karta Supermocy (Wykres kołowy + Poziom) -->
       <div class="home-card superpower-progress-card" onclick="Home.openSuperpowerModal()" style="cursor: pointer;" title="Kliknij, aby zobaczyć szczegóły supermocy">
         <div class="sp-layout">
