@@ -39,7 +39,7 @@ echo [1/3] Instalacja/aktualizacja pakietow...
 .venv\Scripts\pip install -q -r requirements.txt
 
 echo [2/3] Uruchamianie serwera Flask (HTTP, port 5000)...
-start "Jezykowy AS - Serwer" .venv\Scripts\python app_http.py
+start "Jezykowy AS - Serwer" "%~dp0.venv\Scripts\python.exe" app_http.py
 
 echo [3/3] Uruchamianie tunelu ngrok HTTPS...
 echo.
@@ -49,4 +49,12 @@ echo.
 echo Ctrl+C aby zatrzymac.
 echo.
 
-ngrok http 5000
+:: Opcjonalna stała domena ngrok (np. set "NGROK_DOMAIN=twoja-domena.ngrok-free.app")
+set "NGROK_DOMAIN=thesaurus-fetal-vagabond.ngrok-free.dev"
+
+if not "%NGROK_DOMAIN%"=="" (
+    echo Uruchamianie ze stala domena: https://%NGROK_DOMAIN%
+    ngrok http --url=https://%NGROK_DOMAIN% 5000
+) else (
+    ngrok http 127.0.0.1:5000
+)

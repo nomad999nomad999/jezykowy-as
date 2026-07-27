@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#0f0f1a">
+<script>
+// Wymuś usunięcie starego Service Workera i wyczyszczenie cache (jednorazowe)
+if ('serviceWorker' in navigator && !sessionStorage.getItem('sw_cleaned_v33')) {
+  sessionStorage.setItem('sw_cleaned_v33', '1');
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.unregister());
+  });
+  if (window.caches) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  }
+}
+</script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Językowy AS</title>
 <link rel="manifest" href="manifest.json">
@@ -257,8 +269,7 @@
         <button class="tab" onclick="Lists.switch(this,'ZNAM')">✅ Znam</button>
         <button class="tab tab-learned" id="tabLearned" onclick="Lists.showLearned(this)">🎓 Poznałem <span id="learnedCount" class="learned-badge">…</span></button>
       </div>
-      <div class="search-wrap" style="display:flex;gap:8px;align-items:center"><input id="searchInput" class="search-input" type="text" placeholder="🔍 Szukaj słowa…" oninput="Lists.search(this.value)" style="flex:1"><button class="btn btn-outline" onclick="Lists.exportPDF()" title="Wygeneruj raport PDF" style="width:auto;padding:8px 12px;white-space:nowrap;font-size:13px;background:rgba(99,102,241,0.15);border-color:#6366f1;color:#818cf8;font-weight:700">📄 PDF</button></div>
-      <button class="btn btn-primary" onclick="Lists.exportPDF()" style="margin-top:10px;width:100%;font-weight:700;background:linear-gradient(135deg, #6366f1, #8b5cf6);padding:12px;border-radius:8px">🖨️ Pobierz listy słówek w pliku PDF</button>
+      <div class="search-wrap"><input id="searchInput" class="search-input" type="text" placeholder="🔍 Szukaj słowa…" oninput="Lists.search(this.value)"></div>
       <div id="wordsList" class="words-list"></div>
     </section>
 
@@ -307,12 +318,6 @@
           <span class="ex-desc">Przeżyj interaktywną historię RPG podejmując decyzje słownikowe!</span>
           <span class="ex-xp">+10-50 XP/przygoda</span>
         </button>
-        <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(236, 72, 153, 0.12), rgba(245, 158, 11, 0.12)); border-color: rgba(236, 72, 153, 0.35);" onclick="Exercise.start('dialogue')">
-          <span class="ex-icon">💬</span>
-          <span class="ex-name">Symulator Dialogu (Głosowy)</span>
-          <span class="ex-desc">Rozmawiaj na głos z AI, trenuj wymowę i naturalność!</span>
-          <span class="ex-xp">+8 XP/wypowiedź</span>
-        </button>
       </div>
 
     </section>
@@ -357,12 +362,12 @@
             <h2 class="tut-title">Twoje Supermoc!</h2>
             <p class="tut-body" style="margin-bottom:12px">Każde nauczone słowo to nowa umiejętność. Oto co zyskujesz:</p>
             <div class="tut-levels">
-              <div class="tl-row">🟩 <strong>100 słów</strong> → Przeżyjesz na lotnisku i w restauracji</div>
-              <div class="tl-row">🟩 <strong>600 słów</strong> → Rezerwacje i zakupy bez stresa</div>
-              <div class="tl-row">🟨 <strong>1 200 słów</strong> → 83% codziennej mowy — Przełom B1!</div>
-              <div class="tl-row">🟦 <strong>1 800 słów</strong> → YouTube i filmy bez napisów — Płynny B2!</div>
-              <div class="tl-row">🟦 <strong>2 400 słów</strong> → Czytanie biogafii i artykułów branżowych</div>
-              <div class="tl-row">🟥 <strong>3 000 słów</strong> → 97% codziennych tekstów — Elita COCA!</div>
+              <div class="tl-row">🟩 <strong>100 słów</strong> → Przeżyjesz na lotnisku i w hotelu</div>
+              <div class="tl-row">🟩 <strong>500 słów</strong> → Rezerwujesz hotel przez telefon</div>
+              <div class="tl-row">🟨 <strong>1 000 słów</strong> → 80% codziennych rozmów — Przełom B1!</div>
+              <div class="tl-row">🟦 <strong>1 500 słów</strong> → Płynna dyskusja, bez tłumaczenia w głowie</div>
+              <div class="tl-row">🟦 <strong>2 000 słów</strong> → Praca i negocjacje po angielsku</div>
+              <div class="tl-row">🟥 <strong>3 000 słów</strong> → 95% tekstów — Elita językowa!</div>
             </div>
           </div>
 

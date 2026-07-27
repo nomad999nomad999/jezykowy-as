@@ -2309,6 +2309,8 @@ const DB = {
 };
 
 const Backup = {
+  version: "v30",
+
   async export() {
     try {
       if (!DB.db) {
@@ -2318,7 +2320,7 @@ const Backup = {
       
       const backupData = {
         app: "Językowy AS",
-        version: "1.0",
+        version: this.version,
         timestamp: new Date().toISOString(),
         tables: {}
       };
@@ -2375,9 +2377,17 @@ const Backup = {
           return;
         }
         
+        const backupVersion = backupData.version || "1.0";
+        let versionWarning = "";
+        if (backupVersion !== this.version) {
+          versionWarning = `⚠️ Uwaga: Plik kopii zapasowej pochodzi z wersji ${backupVersion}, natomiast bieżąca wersja aplikacji to ${this.version}.\n`;
+        }
+        
         const confirmRestore = confirm(
           `Czy na pewno chcesz wczytać kopię zapasową z dnia ${new Date(backupData.timestamp).toLocaleString()}?\n` +
-          `⚠️ Uwaga: Bieżące dane w tej przeglądarce zostaną zastąpione danymi z pliku!`
+          `Wersja kopii zapasowej: ${backupVersion}\n` +
+          versionWarning +
+          `⚠️ Bieżące dane w tej przeglądarce zostaną zastąpione danymi z pliku!`
         );
         
         if (!confirmRestore) {

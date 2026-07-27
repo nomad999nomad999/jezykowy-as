@@ -60,14 +60,14 @@ const Stats = {
       API.get('/api/stats/vocab-chart'),
       API.get('/api/quests'),
       API.get('/api/achievements'),
-    ]);
+     ]);
 
     // Misje Dzienne
     const questsEl = document.getElementById('questsList');
     if (questsEl && quests && quests.length) {
       const done = quests.filter(q => q.completed).length;
       const badge = document.getElementById('questsBadge');
-      if (badge) badge.textContent = `${done}/3 ukończone`;
+      if (badge) badge.textContent = `${done}/${quests.length} ukończone`;
       questsEl.innerHTML = quests.map(q => {
         const pct = Math.min(100, Math.round(q.progress / q.target * 100));
         const isDone = q.completed;
@@ -375,10 +375,8 @@ const Classify = {
       r <= 3000 ? '#a855f7' : '#6b7280';
     const rankLabel = r && r < 9999 ? `#${r}` : '?';
 
-    // Auto speak only if classify page is actively visible
-    if (document.getElementById('page-classify')?.classList.contains('active')) {
-      setTimeout(() => Speech.speak(w.word), 150);
-    }
+    // Auto speak
+    setTimeout(() => Speech.speak(w.word), 150);
 
     if (container) {
       container.innerHTML = `
@@ -578,114 +576,6 @@ const Lists = {
     // Przekazuj aktualny status do wyszukiwania — słowo musi być w tej liście
     const url = '/api/words/search?q=' + encodeURIComponent(q) + '&status=' + encodeURIComponent(this.currentStatus);
     this.renderList(await API.get(url));
-  },
-  async exportPDF() {
-    const [znam, troche, nieZnam, learned, stats] = await Promise.all([
-      API.get('/api/words?status=ZNAM'),
-      API.get('/api/words?status=TROCHE'),
-      API.get('/api/words?status=NIE_ZNAM'),
-      API.get('/api/words/learned'),
-      API.get('/api/stats')
-    ]);
-
-    const username = Session.username || 'Kursant';
-    const today = new Date().toISOString().slice(0, 10);
-
-    const renderTable = (title, icon, list, color, isLearned=false) => {
-      if (!list || !list.length) return `<h3 style="color:${color};margin-top:20px">${icon} ${title} (0 słów)</h3><p style="color:#666;font-size:13px">Brak słów w tej kategorii.</p>`;
-      const rows = list.map((w, i) => {
-        const acc = w.review_count > 0 ? Math.round(w.correct_count / w.review_count * 100) : null;
-        const extraCol = isLearned 
-          ? `<td style="padding:6px 10px;border-bottom:1px solid #eee;color:#666;font-size:12px">${w.learned_at ? w.learned_at.slice(0,10) : ''}${acc !== null ? ` (${acc}% poprawność)` : ''}</td>` 
-          : `<td style="padding:6px 10px;border-bottom:1px solid #eee;color:#888;font-size:12px;text-align:right">#${w.frequency_rank || '?'}</td>`;
-        
-        return `
-          <tr>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:600;width:40px;color:#888">${i+1}.</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:700;font-size:15px;color:#111">${w.word}</td>
-            <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#444">${w.translation || '—'}</td>
-            ${extraCol}
-          </tr>
-        `;
-      }).join('');
-
-      return `
-        <h3 style="color:${color};margin-top:24px;border-bottom:2px solid ${color};padding-bottom:4px">${icon} ${title} (${list.length} słów)</h3>
-        <table style="width:100%;border-collapse:collapse;margin-top:8px">
-          <thead>
-            <tr style="background:#f4f4f6;text-align:left;font-size:12px;color:#666">
-              <th style="padding:6px 10px">#</th>
-              <th style="padding:6px 10px">Słowo EN</th>
-              <th style="padding:6px 10px">Tłumaczenie PL</th>
-              <th style="padding:6px 10px;${isLearned ? '' : 'text-align:right'}">${isLearned ? 'Data wyuczenia / Statystyka' : 'Rank COCA'}</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    };
-
-    const html = `
-      <!DOCTYPE html>
-      <html lang="pl">
-      <head>
-        <meta charset="UTF-8">
-        <title>Językowy AS - Raport Słownika (${username})</title>
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #111; background: #fff; }
-          .hdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #6366f1; padding-bottom: 12px; margin-bottom: 20px; }
-          .title { font-size: 24px; font-weight: 800; color: #4338ca; margin: 0; }
-          .meta { font-size: 13px; color: #666; }
-          .stats-grid { display: flex; gap: 10px; margin-bottom: 20px; }
-          .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 12px; border-radius: 8px; flex: 1; text-align: center; }
-          .stat-val { font-size: 20px; font-weight: bold; }
-          @media print {
-            body { padding: 0; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="no-print" style="margin-bottom: 20px; text-align: right;">
-          <button onclick="window.print()" style="padding: 10px 20px; background: #4338ca; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🖨️ Zapisz jako PDF / Drukuj</button>
-        </div>
-        <div class="hdr">
-          <div>
-            <h1 class="title">🃏 Językowy AS — Raport Słownika</h1>
-            <div class="meta">Użytkownik: <strong>${username}</strong> &nbsp;•&nbsp; Data: ${today}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:18px;font-weight:bold;color:#4338ca">${stats?.xp || 0} XP</div>
-            <div style="font-size:12px;color:#666">${stats?.level || 'Początkujący'}</div>
-          </div>
-        </div>
-
-        <div class="stats-grid">
-          <div class="stat-box"><div class="stat-val" style="color:#8b5cf6">${learned.length}</div><div style="font-size:11px;color:#666">🎓 Poznałem</div></div>
-          <div class="stat-box"><div class="stat-val" style="color:#16a34a">${znam.length}</div><div style="font-size:11px;color:#666">✅ Znam</div></div>
-          <div class="stat-box"><div class="stat-val" style="color:#d97706">${troche.length}</div><div style="font-size:11px;color:#666">⚠️ Trochę</div></div>
-          <div class="stat-box"><div class="stat-val" style="color:#dc2626">${nieZnam.length}</div><div style="font-size:11px;color:#666">❌ Nie znam</div></div>
-        </div>
-
-        ${renderTable('Poznałem (Wyuczone w ćwiczeniach)', '🎓', learned, '#8b5cf6', true)}
-        ${renderTable('Znam', '✅', znam, '#16a34a')}
-        ${renderTable('Trochę', '⚠️', troche, '#d97706')}
-        ${renderTable('Nie znam', '❌', nieZnam, '#dc2626')}
-
-        <script>
-          setTimeout(() => { window.print(); }, 500);
-        </script>
-      </body>
-      </html>
-    `;
-
-    const printWin = window.open('', '_blank');
-    if (printWin) {
-      printWin.document.write(html);
-      printWin.document.close();
-    } else {
-      alert('Zezwól na wyskakujące okienka w przeglądarce, aby wygenerować PDF!');
-    }
   }
 };
 
