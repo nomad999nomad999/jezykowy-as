@@ -83,6 +83,8 @@ def static_files(filename):
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+    if filename == 'manifest.json':
+        response.headers['Content-Type'] = 'application/manifest+json; charset=utf-8'
     return response
 
 
