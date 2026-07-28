@@ -2,7 +2,7 @@
 Baza danych SQLite – Nauka Angielskiego (multi-user).
 Migracja bezpieczna – istniejące dane dostają user_id=1 (pierwszy użytkownik).
 """
-import sqlite3, os, hashlib
+import sqlite3, os, hashlib, random
 from datetime import datetime, date, timedelta
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "words.db")
@@ -469,18 +469,63 @@ def unskip_coca_word(word, user_id=1):
     with get_conn() as conn:
         conn.execute("DELETE FROM skipped_coca_words WHERE user_id=? AND word=?", (user_id, word))
 
-def get_words_for_review(statuses=("NIE_ZNAM","TROCHE"), limit=20, user_id=1):
-    ph = ",".join("?"*len(statuses))
+def get_words_for_review(statuses=("NIE_ZNAM","TROCHE"), limit=20, user_id=1, update_reviewed=True):
+    """
+    Pobiera słowa do ćwiczeń.
+    Gwarantuje zróżnicowanie (brak zapętlania tych samych słów w kolejnych sesjach):
+    1. Pobiera całą pulę pasujących słów z NIE_ZNAM i TROCHE.
+    2. Jeśli pula jest zbyt mała, dołącza dodatkowe słowa ZNAM dla urozmaicenia.
+    3. Priorytetyzuje słowa najmniej niedawno ćwiczone (last_reviewed), zachowując silny komponent losowy.
+    4. Opcjonalnie aktualizuje last_reviewed = CURRENT_TIMESTAMP dla wybranych słów.
+    """
+    ph = ",".join("?" * len(statuses))
     with get_conn() as conn:
         rows = conn.execute(
-            # Recency Boost: słowa dawno niewidziane (lub nigdy) trafiają pierwsze.
-            # Wśród słów widzianych w tym samym czasie — losowość zachowana.
             f"""SELECT * FROM words
                 WHERE status IN ({ph}) AND translation!='' AND user_id=?
-                ORDER BY COALESCE(last_reviewed, '2000-01-01') ASC, RANDOM()
-                LIMIT ?""",
-            (*statuses, user_id, limit)).fetchall()
-        return [dict(r) for r in rows]
+                ORDER BY RANDOM()""",
+            (*statuses, user_id)).fetchall()
+        pool = [dict(r) for r in rows]
+
+        if len(pool) < limit + 10:
+            needed = (limit + 10) - len(pool)
+            extra = conn.execute(
+                """SELECT * FROM words
+                   WHERE status = 'ZNAM' AND translation!='' AND user_id=?
+                   ORDER BY RANDOM() LIMIT ?""",
+                (user_id, needed)).fetchall()
+            pool.extend([dict(r) for r in extra])
+
+        if not pool:
+            return []
+
+        random.shuffle(pool)
+
+        def score(w):
+            lr = w.get("last_reviewed")
+            rand_val = random.random() * 0.75
+            if not lr:
+                return rand_val
+            try:
+                dt = datetime.fromisoformat(str(lr).replace(" ", "T"))
+                hours_old = (datetime.now() - dt).total_seconds() / 3600.0
+                return (1.0 / (hours_old + 1.0)) + rand_val
+            except Exception:
+                return rand_val
+
+        pool.sort(key=score)
+        selected = pool[:limit]
+
+        if update_reviewed and selected:
+            word_ids = [w["id"] for w in selected if w.get("id")]
+            if word_ids:
+                ph_ids = ",".join("?" * len(word_ids))
+                conn.execute(
+                    f"UPDATE words SET last_reviewed = CURRENT_TIMESTAMP WHERE id IN ({ph_ids})",
+                    word_ids
+                )
+
+        return selected
 
 def search_words(query, user_id=1, status=None):
     q = f"%{query}%"

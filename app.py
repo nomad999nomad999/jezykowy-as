@@ -257,7 +257,7 @@ def multiple_choice():
     user, err, code = _require_user()
     if err: return err, code
     words = db.get_words_for_review(("NIE_ZNAM","TROCHE"), 10, user["id"])
-    pool = [w["translation"] for w in db.get_words_for_review(("NIE_ZNAM","TROCHE","ZNAM"), 60, user["id"]) if w["translation"]]
+    pool = [w["translation"] for w in db.get_words_for_review(("NIE_ZNAM","TROCHE","ZNAM"), 60, user["id"], update_reviewed=False) if w["translation"]]
     result = []
     for w in words:
         wrong = [t for t in pool if t != w["translation"]]
@@ -277,7 +277,7 @@ def speed_round():
     user, err, code = _require_user()
     if err: return err, code
     words = db.get_words_for_review(("NIE_ZNAM","TROCHE"), 30, user["id"])
-    pool = [w["translation"] for w in db.get_words_for_review(("NIE_ZNAM","TROCHE","ZNAM"), 60, user["id"]) if w["translation"]]
+    pool = [w["translation"] for w in db.get_words_for_review(("NIE_ZNAM","TROCHE","ZNAM"), 60, user["id"], update_reviewed=False) if w["translation"]]
     result = []
     for w in words:
         wrong = [t for t in pool if t != w["translation"]]
