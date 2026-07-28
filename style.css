@@ -1,3 +1,6 @@
+/* Językowy AS Combined CSS */
+
+/* === static/css/base.css === */
 :root {
   --bg: #0f0f1a; --bg2: #1a1a2e; --bg3: #16213e;
   --surface: #1e1e3a; --surface2: #252547;
@@ -367,7 +370,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .ex-card-new::before { content:"NOWE"; position:absolute; top:-8px; right:8px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; font-size:9px; font-weight:800; padding:2px 6px; border-radius:8px; letter-spacing:0.5px; }
 
 /* ── DAILY QUESTS ── */
-.quest-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:12px 14px; margin-bottom:10px; transition:border-color 0.3s; }
+.quest-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:12px 14px; margin-bottom:10px; transition: all 0.2s ease; cursor: pointer; }
+.quest-card:hover { background:rgba(255,255,255,0.07); border-color: rgba(99,102,241,0.4); transform: translateY(-2px); }
+.quest-card:active { transform: scale(0.98) translateY(0); }
 .quest-card.quest-done { border-color:rgba(34,197,94,0.4); background:rgba(34,197,94,0.06); }
 .quest-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
 .quest-icon { font-size:24px; flex-shrink:0; }
@@ -437,6 +442,9 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .fc-status-znam   { background:rgba(34,197,94,0.15); color:#4ade80; }
 .fc-rank { font-size:11px; font-weight:700; color:var(--text3); background:rgba(255,255,255,0.07); padding:3px 8px; border-radius:10px; }
 
+
+
+/* === static/css/home.css === */
 /* ══════════════════════════════════════════════
    HOME DASHBOARD
    ══════════════════════════════════════════════ */
@@ -968,7 +976,111 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   color: var(--text2);
 }
 
-/* ── SINGLE CLASSIFY CARD ── */
+
+/* ── 7-DAY STREAK TRACKER ── */
+.streak-tracker-card {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(234, 179, 8, 0.08));
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.15);
+}
+.stk-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stk-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stk-title strong {
+  color: #fb923c;
+  font-size: 16px;
+}
+.stk-status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.stk-status-badge.status-done {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.stk-status-badge.status-warning {
+  background: rgba(249, 115, 22, 0.25);
+  color: #fdba74;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  animation: pulseWarning 2s infinite ease-in-out;
+}
+@keyframes pulseWarning {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.03); opacity: 0.85; }
+}
+
+.stk-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.stk-day-pill {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+.stk-day-pill.is-today {
+  border-color: rgba(249, 115, 22, 0.6);
+  background: rgba(249, 115, 22, 0.12);
+}
+.stk-day-pill.day-done {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.08);
+}
+.stk-day-pill.day-today-pending {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.18);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.3);
+}
+.stk-day-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+}
+.stk-day-pill.is-today .stk-day-name {
+  color: #fb923c;
+  font-weight: 900;
+}
+.stk-day-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.stk-day-date {
+  font-size: 10px;
+  color: var(--text2);
+  font-weight: 600;
+}
+
+
+
+/* === static/css/classify.css === */
+﻿/* ── SINGLE CLASSIFY CARD ── */
 .single-classify-card {
   max-width: 460px;
   margin: 16px auto;
@@ -1085,108 +1197,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   border-color: rgba(255,255,255,0.2);
 }
 
-/* ── QUICK CHALLENGE ARCADE STYLE ── */
-.qc-container {
-  padding: 16px;
-  max-width: 450px;
-  margin: 0 auto;
-}
-.qc-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.qc-score-badge {
-  background: var(--surface2);
-  color: var(--text1);
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 14px;
-}
-.qc-timer-container {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-.qc-timer-text {
-  font-size: 24px;
-  font-weight: 900;
-  color: var(--text1);
-  min-width: 60px;
-  text-align: right;
-}
-.qc-float-indicator {
-  position: absolute;
-  right: -35px;
-  top: -10px;
-  font-size: 14px;
-  font-weight: 800;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(10px);
-  transition: all 0.4s ease-out;
-}
-.qc-float-indicator.show {
-  opacity: 1;
-  transform: translateY(-15px);
-}
-.float-green {
-  color: var(--green);
-}
-.float-red {
-  color: var(--red);
-}
-.qc-heading-text {
-  text-align: center;
-  color: var(--text3);
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-.qc-question-box {
-  min-height: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  margin-bottom: 24px;
-  padding: 16px;
-}
-.qc-word {
-  font-size: 32px;
-  font-weight: 800;
-  text-align: center;
-  word-break: break-word;
-}
-.qc-audio-btn {
-  background: linear-gradient(135deg, var(--blue), var(--indigo));
-  color: white;
-  border: none;
-  padding: 14px 28px;
-  border-radius: 30px;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-  transition: transform 0.2s;
-}
-.qc-audio-btn:active {
-  transform: scale(0.95);
-}
-.pulse-animation {
-  animation: qc-pulse 0.5s infinite alternate;
-}
-@keyframes qc-pulse {
-  from { transform: scale(1); }
-  to { transform: scale(1.15); }
-}
 
 
-
-
-/* ─── SENTENCE BUILDER ────────────────────────────────────────────── */
+/* === static/css/exercise-builder.css === */
+﻿/* ─── SENTENCE BUILDER ────────────────────────────────────────────── */
 .sb-answer-area {
   min-height: 56px;
   border: 2px dashed var(--border);
@@ -1241,335 +1255,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   box-shadow: 0 4px 12px rgba(16,185,129,0.25);
 }
 
-/* ─── DAILY FACT ───────────────────────────────────────────────────── */
-.df-cat-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 4px;
-}
-.df-cat-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 16px 10px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: inherit;
-}
-.df-cat-btn:hover {
-  background: rgba(129,140,248,0.12);
-  border-color: rgba(129,140,248,0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(99,102,241,0.2);
-}
-.df-cat-icon { font-size: 28px; }
-.df-cat-name { font-size: 12px; font-weight: 700; color: var(--text1); text-align: center; }
 
-.df-progress-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-}
-.df-progress-label { font-size: 12px; color: var(--text3); font-weight: 600; }
-.df-progress-dots { display: flex; gap: 6px; }
-.df-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: var(--border);
-  transition: background 0.3s;
-}
-.df-dot-active { background: var(--accent); }
-.df-dot-done { background: var(--green); }
 
-.df-fact-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 18px 16px;
-  line-height: 1.7;
-  font-size: 15px;
-  color: var(--text1);
-}
-.df-fact-title {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 10px;
-}
-.df-highlight {
-  background: rgba(250,204,21,0.18);
-  color: #fbbf24;
-  border-bottom: 2px solid #fbbf24;
-  cursor: pointer;
-  border-radius: 3px;
-  padding: 1px 2px;
-  font-weight: 700;
-  transition: background 0.2s;
-  position: relative;
-}
-.df-highlight-active {
-  background: rgba(250,204,21,0.35);
-}
-.df-highlight::after {
-  content: attr(data-pl);
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: #1e1e2e;
-  border: 1px solid #fbbf24;
-  color: #fbbf24;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 10;
-}
-.df-highlight-active::after { opacity: 1; }
-
-.df-words-section { margin-top: 12px; }
-.df-words-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.df-word-pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(99,102,241,0.1);
-  border: 1px solid rgba(99,102,241,0.3);
-  border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 12px;
-}
-.df-word-en { font-weight: 700; color: var(--text1); }
-.df-word-pl { color: var(--text3); }
-
-.df-question-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px 16px;
-  margin-bottom: 16px;
-}
-.df-question-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 10px;
-}
-.df-question-text {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text1);
-  line-height: 1.5;
-}
-
-.df-tf-btns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 4px;
-}
-.df-tf-btn {
-  padding: 16px 10px;
-  border-radius: 14px;
-  border: 2px solid;
-  font-size: 16px;
-  font-weight: 800;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.2s;
-}
-.df-tf-true {
-  background: rgba(16,185,129,0.12);
-  border-color: rgba(16,185,129,0.4);
-  color: var(--green);
-}
-.df-tf-true:hover:not(:disabled) {
-  background: rgba(16,185,129,0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16,185,129,0.25);
-}
-.df-tf-false {
-  background: rgba(239,68,68,0.12);
-  border-color: rgba(239,68,68,0.4);
-  color: var(--red);
-}
-.df-tf-false:hover:not(:disabled) {
-  background: rgba(239,68,68,0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239,68,68,0.25);
-}
-.df-tf-btn:disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: none; }
-
-.df-feedback-box {
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 13px;
-  line-height: 1.5;
-  margin-top: 4px;
-  margin-bottom: 8px;
-  animation: df-fadein 0.3s ease;
-}
-.df-feedback-correct { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35); }
-.df-feedback-wrong { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); }
-@keyframes df-fadein { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
-
-/* df-highlight: tylko klikalne (mają tłumaczenie) mają kursor i efekt hover */
-.df-highlight-clickable { cursor: pointer; }
-.df-highlight:not(.df-highlight-clickable) { cursor: default; opacity: 0.85; }
-
-/* ─── RPG ADVENTURE ────────────────────────────────────────────────── */
-.rpg-theme-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 10px;
-}
-.rpg-theme-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 20px 10px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.1);
-  font-family: inherit;
-}
-.rpg-theme-btn:hover {
-  background: linear-gradient(135deg, rgba(217, 119, 6, 0.08), rgba(124, 58, 237, 0.08));
-  border-color: rgba(124, 58, 237, 0.5);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(124, 58, 237, 0.25);
-}
-.rpg-theme-icon { font-size: 32px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)); }
-.rpg-theme-name { font-size: 13px; font-weight: 800; color: var(--text1); text-align: center; }
-
-.rpg-status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  background: rgba(255,255,255,0.02);
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-}
-.rpg-stage-indicator { font-size: 12px; font-weight: 700; color: var(--text3); }
-.rpg-hearts-container { display: flex; gap: 4px; }
-.rpg-heart {
-  font-size: 18px;
-  transition: transform 0.2s;
-  animation: heart-pulse 1.5s infinite alternate;
-}
-@keyframes heart-pulse {
-  from { transform: scale(1); }
-  to { transform: scale(1.15); }
-}
-
-.rpg-story-card {
-  background: rgba(124, 58, 237, 0.04);
-  border: 1px solid rgba(124, 58, 237, 0.2);
-  border-radius: 20px;
-  padding: 20px;
-  line-height: 1.8;
-  font-size: 15.5px;
-  color: var(--text1);
-  margin-bottom: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  position: relative;
-}
-.rpg-story-title {
-  font-size: 12px;
-  font-weight: 800;
-  color: #a78bfa;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin-bottom: 12px;
-}
-.rpg-story-pl {
-  font-size: 13.5px;
-  color: var(--text3);
-  line-height: 1.6;
-  border-top: 1px dashed rgba(255,255,255,0.1);
-  padding-top: 12px;
-  margin-top: 12px;
-}
-
-.rpg-choices-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 10px;
-}
-.rpg-choice-btn {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 16px;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.rpg-choice-btn:hover:not(:disabled) {
-  background: rgba(255,255,255,0.07);
-  border-color: var(--accent);
-  transform: translateX(4px);
-}
-.rpg-choice-text { font-size: 14px; font-weight: 700; color: var(--text1); }
-.rpg-choice-pl { font-size: 12px; color: var(--text3); }
-
-.rpg-choice-correct {
-  background: rgba(16,185,129,0.12) !important;
-  border-color: rgba(16,185,129,0.5) !important;
-}
-.rpg-choice-correct .rpg-choice-text { color: var(--green); }
-
-.rpg-choice-wrong {
-  background: rgba(239,68,68,0.12) !important;
-  border-color: rgba(239,68,68,0.5) !important;
-  animation: rpg-shake 0.4s ease;
-}
-.rpg-choice-wrong .rpg-choice-text { color: var(--red); }
-
-@keyframes rpg-shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-6px); }
-  40%, 80% { transform: translateX(6px); }
-}
-
-.rpg-feedback-alert {
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 13px;
-  line-height: 1.5;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  animation: df-fadein 0.3s ease;
-}
-
-/* ── AI VOICE DIALOGUE SIMULATOR ── */
+/* === static/css/exercise-dialogue.css === */
+﻿/* ── AI VOICE DIALOGUE SIMULATOR ── */
 .dialogue-container {
   display: flex;
   flex-direction: column;
@@ -1765,5 +1454,445 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
   flex: 1 !important;
   min-width: 0 !important;
 }
+
+
+
+
+/* === static/css/exercise-fact.css === */
+﻿/* ─── DAILY FACT ───────────────────────────────────────────────────── */
+.df-cat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+.df-cat-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.df-cat-btn:hover {
+  background: rgba(129,140,248,0.12);
+  border-color: rgba(129,140,248,0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99,102,241,0.2);
+}
+.df-cat-icon { font-size: 28px; }
+.df-cat-name { font-size: 12px; font-weight: 700; color: var(--text1); text-align: center; }
+
+.df-progress-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.df-progress-label { font-size: 12px; color: var(--text3); font-weight: 600; }
+.df-progress-dots { display: flex; gap: 6px; }
+.df-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.3s;
+}
+.df-dot-active { background: var(--accent); }
+.df-dot-done { background: var(--green); }
+
+.df-fact-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 16px;
+  line-height: 1.7;
+  font-size: 15px;
+  color: var(--text1);
+}
+.df-fact-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.df-highlight {
+  background: rgba(250,204,21,0.18);
+  color: #fbbf24;
+  border-bottom: 2px solid #fbbf24;
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 2px;
+  font-weight: 700;
+  transition: background 0.2s;
+  position: relative;
+}
+.df-highlight-active {
+  background: rgba(250,204,21,0.35);
+}
+.df-highlight::after {
+  content: attr(data-pl);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1e2e;
+  border: 1px solid #fbbf24;
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+.df-highlight-active::after { opacity: 1; }
+
+.df-words-section { margin-top: 12px; }
+.df-words-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.df-word-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(99,102,241,0.1);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+.df-word-en { font-weight: 700; color: var(--text1); }
+.df-word-pl { color: var(--text3); }
+
+.df-question-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 16px;
+  margin-bottom: 16px;
+}
+.df-question-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.df-question-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text1);
+  line-height: 1.5;
+}
+
+.df-tf-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+.df-tf-btn {
+  padding: 16px 10px;
+  border-radius: 14px;
+  border: 2px solid;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.df-tf-true {
+  background: rgba(16,185,129,0.12);
+  border-color: rgba(16,185,129,0.4);
+  color: var(--green);
+}
+.df-tf-true:hover:not(:disabled) {
+  background: rgba(16,185,129,0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16,185,129,0.25);
+}
+.df-tf-false {
+  background: rgba(239,68,68,0.12);
+  border-color: rgba(239,68,68,0.4);
+  color: var(--red);
+}
+.df-tf-false:hover:not(:disabled) {
+  background: rgba(239,68,68,0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239,68,68,0.25);
+}
+.df-tf-btn:disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: none; }
+
+.df-feedback-box {
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  animation: df-fadein 0.3s ease;
+}
+.df-feedback-correct { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35); }
+.df-feedback-wrong { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); }
+@keyframes df-fadein { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+/* df-highlight: tylko klikalne (mają tłumaczenie) mają kursor i efekt hover */
+.df-highlight-clickable { cursor: pointer; }
+.df-highlight:not(.df-highlight-clickable) { cursor: default; opacity: 0.85; }
+
+
+
+/* === static/css/exercise-quick.css === */
+﻿/* ── QUICK CHALLENGE ARCADE STYLE ── */
+.qc-container {
+  padding: 16px;
+  max-width: 450px;
+  margin: 0 auto;
+}
+.qc-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.qc-score-badge {
+  background: var(--surface2);
+  color: var(--text1);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+.qc-timer-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.qc-timer-text {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--text1);
+  min-width: 60px;
+  text-align: right;
+}
+.qc-float-indicator {
+  position: absolute;
+  right: -35px;
+  top: -10px;
+  font-size: 14px;
+  font-weight: 800;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: all 0.4s ease-out;
+}
+.qc-float-indicator.show {
+  opacity: 1;
+  transform: translateY(-15px);
+}
+.float-green {
+  color: var(--green);
+}
+.float-red {
+  color: var(--red);
+}
+.qc-heading-text {
+  text-align: center;
+  color: var(--text3);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.qc-question-box {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+}
+.qc-word {
+  font-size: 32px;
+  font-weight: 800;
+  text-align: center;
+  word-break: break-word;
+}
+.qc-audio-btn {
+  background: linear-gradient(135deg, var(--blue), var(--indigo));
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 30px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  transition: transform 0.2s;
+}
+.qc-audio-btn:active {
+  transform: scale(0.95);
+}
+.pulse-animation {
+  animation: qc-pulse 0.5s infinite alternate;
+}
+@keyframes qc-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.15); }
+}
+
+
+
+
+
+
+/* === static/css/exercise-rpg.css === */
+﻿/* ─── RPG ADVENTURE ────────────────────────────────────────────────── */
+.rpg-theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+.rpg-theme-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  font-family: inherit;
+}
+.rpg-theme-btn:hover {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.08), rgba(124, 58, 237, 0.08));
+  border-color: rgba(124, 58, 237, 0.5);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(124, 58, 237, 0.25);
+}
+.rpg-theme-icon { font-size: 32px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)); }
+.rpg-theme-name { font-size: 13px; font-weight: 800; color: var(--text1); text-align: center; }
+
+.rpg-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  background: rgba(255,255,255,0.02);
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.rpg-stage-indicator { font-size: 12px; font-weight: 700; color: var(--text3); }
+.rpg-hearts-container { display: flex; gap: 4px; }
+.rpg-heart {
+  font-size: 18px;
+  transition: transform 0.2s;
+  animation: heart-pulse 1.5s infinite alternate;
+}
+@keyframes heart-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.15); }
+}
+
+.rpg-story-card {
+  background: rgba(124, 58, 237, 0.04);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  border-radius: 20px;
+  padding: 20px;
+  line-height: 1.8;
+  font-size: 15.5px;
+  color: var(--text1);
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+.rpg-story-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+.rpg-story-pl {
+  font-size: 13.5px;
+  color: var(--text3);
+  line-height: 1.6;
+  border-top: 1px dashed rgba(255,255,255,0.1);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.rpg-choices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+.rpg-choice-btn {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rpg-choice-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.07);
+  border-color: var(--accent);
+  transform: translateX(4px);
+}
+.rpg-choice-text { font-size: 14px; font-weight: 700; color: var(--text1); }
+.rpg-choice-pl { font-size: 12px; color: var(--text3); }
+
+.rpg-choice-correct {
+  background: rgba(16,185,129,0.12) !important;
+  border-color: rgba(16,185,129,0.5) !important;
+}
+.rpg-choice-correct .rpg-choice-text { color: var(--green); }
+
+.rpg-choice-wrong {
+  background: rgba(239,68,68,0.12) !important;
+  border-color: rgba(239,68,68,0.5) !important;
+  animation: rpg-shake 0.4s ease;
+}
+.rpg-choice-wrong .rpg-choice-text { color: var(--red); }
+
+@keyframes rpg-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.rpg-feedback-alert {
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: df-fadein 0.3s ease;
+}
+
 
 
