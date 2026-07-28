@@ -19,8 +19,7 @@ _CONTEXTS = [
 def _ask(prompt: str, max_retries: int = 2) -> str:
     """Wysyła prompt do Gemini z obsługą rate limit (429) i przełączaniem modeli."""
     import time
-    # Gemini 2.5 flash first (faster), fall back to 1.5
-    models = ["gemini-2.5-flash", "gemini-1.5-flash"]
+    models = ["gemini-2.0-flash", "gemini-1.5-flash"]
     for model_name in models:
         for attempt in range(max_retries):
             try:
@@ -31,7 +30,6 @@ def _ask(prompt: str, max_retries: int = 2) -> str:
                 is_rate_limit = "429" in err_str or "quota" in err_str.lower() or "rate" in err_str.lower()
                 print(f"Gemini {model_name} attempt {attempt+1} failed: {e}")
                 if is_rate_limit:
-                    # Rate limit - nie próbuj tego modelu dalej, przejdź do następnego
                     break
                 if attempt < max_retries - 1:
                     time.sleep(1.5)  # krótka przerwa przed następną próbą
@@ -303,6 +301,9 @@ Rules:
         data = json.loads(raw)
         if not data.get("fact") or len(data.get("questions", [])) < 3:
             raise ValueError("Bad structure")
+        if not data.get("fact_pl"):
+            clean_fact = data["fact"].replace("**", "")
+            data["fact_pl"] = _ask(f"Przetłumacz ten tekst na język polski:\n{clean_fact}") or f"Tłumaczenie: {clean_fact}"
         return data
     except Exception as ex:
         print(f"generate_daily_fact fallback: {ex}")

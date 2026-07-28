@@ -106,6 +106,9 @@ Object.assign(Exercise, {
       `<div class="df-word-pill"><span class="df-word-en">${w.word}</span><span class="df-word-pl">${w.translation}</span></div>`
     ).join('');
 
+    const cleanPl = (fact.fact_pl || '').replace(/\*\*/g, '').trim();
+    const finalPl = cleanPl || (fact.used_words ? `Oto zestawienie kluczowych słówek: ${(fact.used_words||[]).map(w=>w.word+' = '+w.translation).join(', ')}.` : 'Tłumaczenie w trakcie przygotowywania...');
+
     document.getElementById('modalBody').innerHTML = `
       <div style="padding:16px;max-width:480px;margin:0 auto">
         <div class="df-progress-bar">
@@ -133,7 +136,7 @@ Object.assign(Exercise, {
           </button>
           <div id="dfPlTrans" class="hidden" style="background:rgba(255,255,255,0.04);border-left:3px solid var(--green);padding:12px;border-radius:8px;font-size:13.5px;color:var(--text2);line-height:1.6">
             <strong style="color:var(--green);display:block;margin-bottom:4px">Tłumaczenie polskie:</strong>
-            ${fact.fact_pl || 'Brak tłumaczenia całego tekstu.'}
+            ${finalPl}
           </div>
         </div>
 
