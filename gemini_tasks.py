@@ -252,16 +252,21 @@ Example: {{"sentence": "She had no doubt about her decision.", "translation_pl":
 
 
 _DAILY_FACT_CATEGORIES = {
+    "primitive_human": ("Primitive Humans & Archaeology", "Człowiek pierwotny i Archeologia"),
+    "polish_business": ("Polish Business & Economy", "Polski biznes i Gospodarka"),
     "biology": ("Biology", "Biologia"),
     "evolutionary_biology": ("Evolutionary Biology", "Biologia ewolucyjna"),
-    "nature": ("Nature", "Przyroda"),
-    "physics": ("Physics", "Fizyka"),
-    "technology": ("Technology", "Technika"),
+    "nature": ("Nature & Wildlife", "Przyroda i Świat zwierząt"),
+    "physics": ("Physics & Quantum Realm", "Fizyka i Kosmos"),
+    "technology": ("Technology & Innovation", "Technika i AI"),
+    "history": ("World History & Civilizations", "Historia świata"),
+    "psychology": ("Psychology & Mind", "Psychologia i Mózg"),
+    "culture": ("Culture & Pop Culture", "Popkultura i Sztuka"),
 }
 
 
 def generate_daily_fact(category_en: str, category_pl: str, user_words: list) -> dict:
-    """Generuje ciekawostke naukowa z wyroznionymis slowami uzytkownika + quiz T/F."""
+    """Generuje ciekawostkę naukową z wyróżnionymi słowami użytkownika, polskim tłumaczeniem akapitu + quiz T/F."""
     words_str = ", ".join(f'"{w["word"]}" ({w.get("translation","?")})' for w in user_words[:15])
     prompt = f"""You are creating educational English content for a Polish speaker learning English.
 
@@ -272,17 +277,19 @@ Return ONLY valid JSON (no markdown):
 {{
   "title": "Specific topic title (4-6 English words)",
   "fact": "3-4 sentences (80-130 words). B1-B2 English level. Use 3-5 user words naturally. Mark each used target word with **double asterisks** like **word**.",
+  "fact_pl": "Kompletne, dokładne i naturalne tłumaczenie całego powyższego akapitu na język polski.",
   "used_words": [
-    {{"word": "used_word", "translation": "polskie tlumaczenie", "context": "short phrase using it"}}
+    {{"word": "used_word", "translation": "polskie tłumaczenie", "context": "short phrase using it"}}
   ],
   "questions": [
-    {{"statement": "One-sentence T/F statement about the fact only.", "answer": true, "explanation": "Krotkie wyjasnienie po polsku."}},
-    {{"statement": "Another statement.", "answer": false, "explanation": "Wyjasnienie."}},
-    {{"statement": "Third statement.", "answer": true, "explanation": "Wyjasnienie."}}
+    {{"statement": "One-sentence T/F statement about the fact only.", "answer": true, "explanation": "Krótkie wyjaśnienie po polsku."}},
+    {{"statement": "Another statement.", "answer": false, "explanation": "Wyjaśnienie."}},
+    {{"statement": "Third statement.", "answer": true, "explanation": "Wyjaśnienie."}}
   ]
 }}
 
 Rules:
+- Include "fact_pl" which is a full, accurate Polish translation of the entire fact text so the learner can understand difficult words.
 - Exactly 3 questions, mix of true/false (not all same answer)
 - Questions answerable ONLY from the fact text
 - Fact must be genuinely interesting and accurate
@@ -299,15 +306,16 @@ Rules:
         return data
     except Exception as ex:
         print(f"generate_daily_fact fallback: {ex}")
-        w = user_words[0] if user_words else {"word": "develop", "translation": "rozwijac"}
+        w = user_words[0] if user_words else {"word": "develop", "translation": "rozwijać"}
         return {
             "title": f"{category_en}: Key Facts",
             "fact": f"Scientists study how living things **{w['word']}** in different environments. Many organisms adapt to survive in extreme conditions. Research shows that even small environmental changes can have significant effects. Understanding these processes is essential for protecting our planet.",
+            "fact_pl": f"Naukowcy badają, jak żywe organizmy rozwijają się w różnych środowiskach. Wiele organizmów przystosowuje się, aby przetrwać w ekstremalnych warunkach. Badania pokazują, że nawet małe zmiany środowiskowe mogą mieć znaczący wpływ. Zrozumienie tych procesów jest kluczowe dla ochrony naszej planety.",
             "used_words": [{"word": w["word"], "translation": w.get("translation","?"), "context": f"how things {w['word']}"}],
             "questions": [
                 {"statement": "Small environmental changes can have significant effects.", "answer": True, "explanation": "Tekst wprost to stwierdza."},
-                {"statement": "Scientists fully understand all adaptation processes.", "answer": False, "explanation": "Tekst mowi ze 'badaja', nie ze w pelni rozumieja."},
-                {"statement": "Understanding natural processes helps protect our planet.", "answer": True, "explanation": "Tekst konczy sie tym stwierdzeniem."}
+                {"statement": "Scientists fully understand all adaptation processes.", "answer": False, "explanation": "Tekst mówi że 'badają', nie że w pełni rozumieją."},
+                {"statement": "Understanding natural processes helps protect our planet.", "answer": True, "explanation": "Tekst kończy się tym stwierdzeniem."}
             ]
         }
 

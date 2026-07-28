@@ -23,6 +23,70 @@ const Home = {
   _levelsOpen: false,
   _stats: null,
 
+  renderStreakTracker(streakData, historyData) {
+    const gridEl = document.getElementById('streakDaysGrid');
+    const statusEl = document.getElementById('streakTodayStatus');
+    const countEl = document.getElementById('streakCount');
+    if (!gridEl) return;
+
+    const streakVal = streakData?.current_streak || 0;
+    if (countEl) countEl.textContent = streakVal;
+
+    const daysArr = [];
+    const dayNames = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb'];
+    const today = new Date();
+    
+    const getLocalIso = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const todayIso = getLocalIso(today);
+    const historyDays = new Set((historyData || []).filter(h => (h.xp || 0) > 0).map(h => h.day));
+    const isTodayDone = historyDays.has(todayIso);
+
+    if (statusEl) {
+      if (isTodayDone) {
+        statusEl.className = 'stk-status-badge status-done';
+        statusEl.innerHTML = '✅ Dzisiejszy trening zaliczony!';
+      } else {
+        statusEl.className = 'stk-status-badge status-warning';
+        statusEl.innerHTML = '⚡ Zrób ćwiczenie, by zachować serię!';
+      }
+    }
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const iso = getLocalIso(d);
+      const name = dayNames[d.getDay()];
+      const isCurrentDay = (i === 0);
+      const isDone = historyDays.has(iso);
+
+      let statusClass = 'day-missed';
+      let icon = '⚪';
+      if (isDone) {
+        statusClass = 'day-done';
+        icon = '✅';
+      } else if (isCurrentDay) {
+        statusClass = 'day-today-pending';
+        icon = '🔥';
+      }
+
+      daysArr.push(`
+        <div class="stk-day-pill ${statusClass} ${isCurrentDay ? 'is-today' : ''}" title="${iso}">
+          <span class="stk-day-name">${isCurrentDay ? 'Dziś' : name}</span>
+          <span class="stk-day-icon">${icon}</span>
+          <span class="stk-day-date">${d.getDate()}</span>
+        </div>
+      `);
+    }
+
+    gridEl.innerHTML = daysArr.join('');
+  },
+
   openSuperpowerModal() {
     const modal = document.getElementById('superpowerModal');
     if (!modal) return;
@@ -152,6 +216,10 @@ const Home = {
       const history = await API.get('/api/stats/history?days=7');
       const histEl = document.getElementById('homeActivityHistory');
       const todayXpEl = document.getElementById('homeTodayXp');
+      
+      // Render visual 7-day streak calendar tracker
+      this.renderStreakTracker(stats?.streak, history);
+
       if (histEl && history) {
         if (!history.length) {
           histEl.innerHTML = '<p style="text-align:center;color:var(--text3);font-size:13px">Brak danych — zrób pierwsze ćwiczenie dzisiaj!</p>';

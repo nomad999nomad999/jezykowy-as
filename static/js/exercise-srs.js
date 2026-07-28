@@ -1,4 +1,3 @@
-﻿Object.assign(Exercise, {
 Object.assign(Exercise, {
   async startSRS() {
     this.data = await API.get('/api/exercise/srs');
