@@ -326,38 +326,46 @@ def daily_fact():
     if err: return err, code
     category = request.args.get("category", "biology")
     cats = {
+        "primitive_human": ("Primitive Humans & Archaeology", "Człowiek pierwotny i Archeologia"),
+        "polish_business": ("Polish Business & Economy", "Polski biznes i Gospodarka"),
         "biology": ("Biology", "Biologia"),
         "evolutionary_biology": ("Evolutionary Biology", "Biologia ewolucyjna"),
-        "nature": ("Nature", "Przyroda"),
-        "physics": ("Physics", "Fizyka"),
-        "technology": ("Technology", "Technika"),
+        "nature": ("Nature & Wildlife", "Przyroda i Świat zwierząt"),
+        "physics": ("Physics & Quantum Realm", "Fizyka i Kosmos"),
+        "technology": ("Technology & Innovation", "Technika i AI"),
+        "history": ("World History & Civilizations", "Historia świata"),
+        "psychology": ("Psychology & Mind", "Psychologia i Mózg"),
+        "culture": ("Culture & Pop Culture", "Popkultura i Sztuka"),
     }
     cat_en, cat_pl = cats.get(category, ("Biology", "Biologia"))
-    # Pula słów: priorytetyzujemy NIE_ZNAM, TROCHE oraz słowa wyuczone (ZNAM z learned_at IS NOT NULL)
+    # Pula słów: priorytetyzujemy NIE_ZNAM i TROCHE. Losujemy z całej dostępnej puli (60+ słów),
+    # aby uniknąć powtarzania ciągle tej samej małej grupy słów!
+    import random
     with db.get_conn() as conn:
         rows = conn.execute(
             """SELECT * FROM words
                WHERE user_id = ? AND translation != ''
-                 AND (status IN ('NIE_ZNAM', 'TROCHE') OR (status = 'ZNAM' AND learned_at IS NOT NULL))
-               ORDER BY COALESCE(last_reviewed, '2000-01-01') ASC, RANDOM()
-               LIMIT 20""",
+                 AND status IN ('NIE_ZNAM', 'TROCHE')
+               ORDER BY RANDOM()
+               LIMIT 60""",
             (user["id"],)
         ).fetchall()
         pool = [dict(r) for r in rows]
 
     if len(pool) < 15:
-        # Dobierz ze zwykłego ZNAM (gdzie learned_at jest NULL) jako fallback
-        needed = 20 - len(pool)
+        needed = 30 - len(pool)
         with db.get_conn() as conn:
             extra = conn.execute(
                 """SELECT * FROM words
                    WHERE user_id = ? AND translation != ''
-                     AND status = 'ZNAM' AND learned_at IS NULL
-                   ORDER BY COALESCE(last_reviewed, '2000-01-01') ASC, RANDOM()
+                     AND status = 'ZNAM'
+                   ORDER BY RANDOM()
                    LIMIT ?""",
                 (user["id"], needed)
             ).fetchall()
             pool.extend([dict(r) for r in extra])
+
+    random.shuffle(pool)
     return jsonify(gemini.generate_daily_fact(cat_en, cat_pl, pool))
 
 @app.route("/api/exercise/dialogue/init")

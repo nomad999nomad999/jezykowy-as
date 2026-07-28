@@ -975,22 +975,35 @@ def seed_srs_for_user(user_id=1):
         """, (user_id, user_id))
 
 def get_srs_due(user_id=1, limit=20):
-    """Zwraca slowa do powtorki (next_review <= dzis), seeduje jesli brak."""
+    """Zwraca słowa do powtórki (next_review <= dziś), z fallbackiem jeśli brak zaległości."""
     from datetime import date
     seed_srs_for_user(user_id)
     today = date.today().isoformat()
     with get_conn() as conn:
         _ensure_srs_table(conn)
-        # Priorytet: najpierw zaleglosci (najstarsze), potem dzisiejsze – ale w losowej kolejnosci
-        # Dzieki temu sesja nie wyglada tak samo za kazdym razem
         rows = conn.execute("""
-            SELECT s.id as srs_id, s.word_id, s.word, s.translation,
+            SELECT s.id as srs_id, s.word_id, s.word,
+                   COALESCE(NULLIF(s.translation,''), c.translation, w.translation, s.word) as translation,
                    s.ef, s.interval, s.repetitions, s.next_review
             FROM srs_cards s
+            LEFT JOIN coca_words c ON c.word = s.word
+            LEFT JOIN words w ON w.id = s.word_id
             WHERE s.user_id=? AND s.next_review <= ?
             ORDER BY s.next_review ASC, RANDOM()
             LIMIT ?
         """, (user_id, today, limit)).fetchall()
+        if not rows:
+            rows = conn.execute("""
+                SELECT s.id as srs_id, s.word_id, s.word,
+                       COALESCE(NULLIF(s.translation,''), c.translation, w.translation, s.word) as translation,
+                       s.ef, s.interval, s.repetitions, s.next_review
+                FROM srs_cards s
+                LEFT JOIN coca_words c ON c.word = s.word
+                LEFT JOIN words w ON w.id = s.word_id
+                WHERE s.user_id=?
+                ORDER BY s.next_review ASC, RANDOM()
+                LIMIT ?
+            """, (user_id, limit)).fetchall()
         return [dict(r) for r in rows]
 
 def get_srs_due_count(user_id=1):
