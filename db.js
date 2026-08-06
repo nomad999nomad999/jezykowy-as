@@ -1317,7 +1317,10 @@ const DB = {
             ms = { count: totalLearned, bonus: bonus };
           }
 
-          return { ok: true, xp: xpAward, total_xp: resXp.xp, level: resXp.level, milestone: ms };
+          const uFinal = await this.db.users.get(userId);
+          const finalXp = uFinal ? uFinal.xp : (resXp ? resXp.xp : 0);
+          const finalLvl = uFinal ? uFinal.level : "Beginner 🌱";
+          return { ok: true, xp: xpAward, total_xp: finalXp, level: finalLvl, milestone: ms };
         }
 
         return { ok: true };
@@ -1378,9 +1381,11 @@ const DB = {
           await this.db.words.update(existing.id, { status });
         }
 
-        const resXp = await this.addUserXp(userId, 2);
         const qDone = await this.updateQuestProgress(userId, "classify", 1);
+        const resXp = await this.addUserXp(userId, 2);
         const bEarned = await this.checkAndAwardBadges(userId);
+        const uFinal = await this.db.users.get(userId);
+        const finalXp = uFinal ? uFinal.xp : resXp.xp;
 
         const countClassified = await this.db.words.where({ user_id: userId }).count();
         let milestone = null;
@@ -1391,7 +1396,7 @@ const DB = {
         return {
           ok: true,
           xp: 3,
-          total_xp: resXp.xp,
+          total_xp: finalXp,
           milestone,
           quests_done: qDone.map(q => ({ icon: q.icon, desc: q.desc, xp: q.xp })),
           badges_earned: bEarned
@@ -1567,11 +1572,13 @@ const DB = {
         }
 
         const bEarned = await this.checkAndAwardBadges(userId, correct, words, type);
+        const uFinal = await this.db.users.get(userId);
+        const finalXp = uFinal ? uFinal.xp : resXp.xp;
 
         return {
           ok: true,
           xp_earned: xpEarned,
-          total_xp: resXp.xp,
+          total_xp: finalXp,
           streak: streak.current_streak,
           quests_done: qDone.map(q => ({ icon: q.icon, desc: q.desc, xp: q.xp })),
           badges_earned: bEarned

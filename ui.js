@@ -776,6 +776,9 @@ function showClassifyMilestone(count) {
 }
 
 function showQuestComplete(q) {
+  if (q && q.xp && typeof XP !== 'undefined' && XP.show) {
+    XP.show(q.xp);
+  }
   const el = document.createElement('div');
   el.className = 'quest-complete-popup';
   el.innerHTML = `

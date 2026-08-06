@@ -218,7 +218,9 @@ def classify_word():
         milestone = {"count": total}
     quests_done = db.update_quest_progress(user["id"], "classify", 1)
     badges_earned = db.check_and_award_badges(user["id"])
-    return jsonify({"ok": True, "xp": actual, "total_xp": xp, "milestone": milestone,
+    u_curr = db.get_user_by_id(user["id"])
+    final_total_xp = u_curr["xp"] if u_curr else xp
+    return jsonify({"ok": True, "xp": actual, "total_xp": final_total_xp, "milestone": milestone,
                     "quests_done": quests_done, "badges_earned": badges_earned})
 
 @app.route("/api/classify/skip", methods=["POST"])
@@ -449,7 +451,9 @@ def save_session():
         quests_done += db.update_quest_progress(user["id"], "flashcards", words_cnt)
     badges_earned = db.check_and_award_badges(user["id"],
         session_correct=correct, session_words=words_cnt, session_type=ex_type)
-    return jsonify({"ok": True, "xp_earned": actual_xp, "total_xp": new_xp,
+    u_curr = db.get_user_by_id(user["id"])
+    final_total_xp = u_curr["xp"] if u_curr else new_xp
+    return jsonify({"ok": True, "xp_earned": actual_xp, "total_xp": final_total_xp,
                     "multiplier": mult, "streak": new_streak,
                     "quests_done": quests_done, "badges_earned": badges_earned})
 
