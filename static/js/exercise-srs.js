@@ -67,6 +67,11 @@ Object.assign(Exercise, {
       <div id="srsQuality" class="hidden">
         <p style="text-align:center;color:var(--text2);font-size:13px;margin-bottom:10px">Jak dobrze pamiętasz?</p>
         <div class="srs-translation" id="srsTrans">${w.translation || '—'}</div>
+        <div id="srsSentenceBox" style="margin:10px 0;text-align:center">
+          <button class="btn btn-outline" style="font-size:12px;padding:6px 14px;border-radius:18px;color:#a855f7;border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.08)" onclick="Exercise.srsLoadSentence('${w.word.replace(/'/g, "\\'")}', '${(w.translation||'').replace(/'/g, "\\'")}')">
+            💡 Wygeneruj zdanie przykładowe (AI)
+          </button>
+        </div>
         <div class="srs-buttons">
           <button class="srs-btn srs-fail" onclick="Exercise.rateSRS(${w.srs_id},1)">😓<br><span>Nie wiem</span><small style="display:block;font-size:9px;opacity:0.6;margin-top:2px">${lFail}</small></button>
           <button class="srs-btn srs-hard" onclick="Exercise.rateSRS(${w.srs_id},3)">😐<br><span>Trudne</span><small style="display:block;font-size:9px;opacity:0.6;margin-top:2px">${lHard}</small></button>
@@ -80,6 +85,22 @@ Object.assign(Exercise, {
       document.getElementById('srsReveal').classList.add('hidden');
     });
     this.setScore();
+  },
+
+  async srsLoadSentence(word, translation) {
+    const box = document.getElementById('srsSentenceBox');
+    if (!box) return;
+    box.innerHTML = '<div class="spinner spinner-small" style="margin:8px auto"></div><span style="font-size:12px;color:var(--text3)">Gemini generuje zdanie...</span>';
+    try {
+      const res = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(word)}&translation=${encodeURIComponent(translation||'')}`);
+      box.innerHTML = `
+        <div style="background:rgba(168,85,247,0.1);border-left:3px solid #a855f7;padding:10px 12px;border-radius:8px;margin-top:6px;font-size:13px;text-align:left">
+          <div style="color:var(--text1);font-weight:600">"${res.sentence}"</div>
+          <div style="color:var(--text3);font-size:12px;margin-top:4px">${res.sentence_pl}</div>
+        </div>`;
+    } catch(e) {
+      box.innerHTML = '<div style="color:var(--red);font-size:12px;margin-top:6px">Nie udało się pobrać zdania.</div>';
+    }
   },
 
   async rateSRS(srsId, quality) {

@@ -2309,7 +2309,7 @@ const DB = {
 };
 
 const Backup = {
-  version: "2026.07.28",
+  version: "2026.08.06",
 
   async export() {
     try {

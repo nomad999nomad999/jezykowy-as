@@ -310,6 +310,30 @@ def gemini_sentence_builder():
     translation = request.args.get("translation", "")
     return jsonify(gemini.generate_sentence_builder(word, translation))
 
+@app.route("/api/word/translate")
+def word_translate():
+    user, err, code = _require_user()
+    if err: return err, code
+    w_str = request.args.get("word", "").strip().lower()
+    if not w_str:
+        return jsonify({"word": "", "translation": "Brak słowa"})
+    
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT translation FROM words WHERE user_id = ? AND LOWER(word) = ?", (user["id"], w_str)).fetchone()
+        if row and row["translation"]:
+            return jsonify({"word": w_str, "translation": row["translation"]})
+        
+        row_any = conn.execute("SELECT translation FROM words WHERE LOWER(word) = ? AND translation != '' LIMIT 1", (w_str,)).fetchone()
+        if row_any and row_any["translation"]:
+            return jsonify({"word": w_str, "translation": row_any["translation"]})
+
+    try:
+        prompt = f"Translate the single English word '{w_str}' to Polish. Respond ONLY with the concise Polish translation, no extra punctuation."
+        tr = gemini._ask(prompt).strip()
+        return jsonify({"word": w_str, "translation": tr})
+    except Exception:
+        return jsonify({"word": w_str, "translation": "Brak tłumaczenia"})
+
 @app.route("/api/gemini/rpg_adventure", methods=["POST"])
 def gemini_rpg_adventure():
     data = request.json or {}

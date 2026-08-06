@@ -417,15 +417,20 @@ Expected JSON Structure:
 def generate_dialogue_init(topic: str, user_words: list) -> dict:
     """Generuje scenariusz dialogu z określonym tematem i słowami kluczowymi."""
     words_str = ", ".join(f'"{w["word"]}" ({w.get("translation","?")})' for w in user_words[:10])
+    
+    topic_prompt = f"Topic requested: {topic}"
+    if topic in ["random", "Random", "Losowa sytuacja", "Losowa Sytuacja", "random_surprise"]:
+        topic_prompt = "Topic: Pick a completely surprising, creative, fun real-world roleplay scenario (e.g. returning a defective gadget at an electronics store in London, renting a sports car, ordering street food in NYC, negotiating with a landlord, asking for directions at a train station)."
+
     prompt = f"""You are an English teacher. Create a real-life English dialogue simulation scenario.
-Topic: {topic}
-User vocabulary to practice (pick 2-3 to highlight if they fit, or suggest general phrases): {words_str}
+{topic_prompt}
+User vocabulary to practice: {words_str}
 
 Return ONLY valid JSON (no markdown):
 {{
   "topic_pl": "Nazwa tematu po polsku (np. W kawiarni)",
-  "description": "Krótki opis sytuacji po polsku (2 zdania, np. Jesteś w kawiarni w Londynie. Chcesz zamówić kawę i deser.)",
-  "goal": "Cel rozmowy dla użytkownika po polsku (np. Zamów cappuccino i muffin, zapytaj o hasło do Wi-Fi.)",
+  "description": "Krótki opis sytuacji po polsku (2 zdania)",
+  "goal": "Cel rozmowy dla użytkownika po polsku (np. Zamów kawę i zapytaj o Wi-Fi)",
   "target_words": [
     {{"word": "target_word", "translation": "polskie tłumaczenie"}}
   ],
@@ -433,7 +438,7 @@ Return ONLY valid JSON (no markdown):
     "Expected word or phrase 1",
     "Expected word or phrase 2"
   ],
-  "bot_first_msg": "Greeting message from the bot in English to start the dialogue..."
+  "bot_first_msg": "Initial roleplay greeting/question from the bot in English to open the scene..."
 }}
 """
     raw = _ask(prompt)
@@ -462,23 +467,29 @@ def evaluate_dialogue_turn(chat_history: list, user_input: str, expected_phrases
     for msg in chat_history:
         history_str += f"{msg['role'].upper()}: {msg['text']}\n"
     
-    prompt = f"""You are an English teacher evaluating a student's spoken English in an interactive dialogue.
+    prompt = f"""You are a strict, highly realistic English evaluator in an interactive dialogue simulation.
 Scenario Goal: {goal}
 Target words/phrases student should try to use: {", ".join(expected_phrases)}
 
 Dialogue history so far:
 {history_str}
-Student's latest response (transcribed from speech): "{user_input}"
+Student's latest response: "{user_input}"
 
-Analyze the student's latest response and return ONLY valid JSON (no markdown):
+CRITICAL EVALUATION AND CONVERSATION RULES:
+1. "correctness_score": Integer 0-100. BE STRICT AND REALISTIC! If the answer has grammatical errors, bad sentence structure, or is just a lazy 1-2 word reply, rate correctness between 35 and 65. Do NOT give 85-100 unless the answer is genuinely correct and well-formed.
+2. "vocabulary_score": Integer 0-100. Set to 100 if student correctly used any target word/phrase. Set to 0 if no target words were used.
+3. "score": Overall turn score (average of correctness and vocabulary if vocabulary > 0, else equal to correctness).
+4. "bot_reply": CRITICAL! Do NOT repeat generic filler phrases like "I see, tell me more about it" or "That's good". You MUST actively continue the roleplay scenario in character, ask a specific next question, or push the dialogue towards completing the goal!
+
+Analyze the response and return ONLY valid JSON (no markdown):
 {{
-  "correctness_score": 85, // Integer 0-100 based on grammatical correctness and naturalness
-  "vocabulary_score": 100, // Integer 0-100 based on whether they used the target words/phrases from the list correctly in this turn. Set to 0 if none of the target words/phrases were used/attempted in this turn.
-  "score": 92, // Integer 0-100, overall score (average of correctness_score and vocabulary_score, or equal to correctness_score if vocabulary_score is 0)
-  "feedback_pl": "Krótka ocena po polsku (np. Super! Poprawnie użyłeś słowa. Uważaj tylko na przedimek 'a' przed rzeczownikami.)",
-  "better_version": "A more natural/correct way a native speaker would say this in English...",
-  "bot_reply": "The bot's next reply in English, keeping the conversation going...",
-  "is_goal_achieved": false // true if the conversation goal has been completed (usually 3-4 turns total)
+  "correctness_score": 65,
+  "vocabulary_score": 0,
+  "score": 65,
+  "feedback_pl": "Ocena po polsku (np. Uważaj na gramatykę: użyj 'I would like' zamiast 'I want'.)",
+  "better_version": "A more natural, correct way a native speaker would say this...",
+  "bot_reply": "Specific in-character response advancing the scene...",
+  "is_goal_achieved": false
 }}
 """
     raw = _ask(prompt)
@@ -488,12 +499,11 @@ Analyze the student's latest response and return ONLY valid JSON (no markdown):
             raw = raw[s:e+1]
         data = json.loads(raw)
         
-        # Ensure we have the split scores
         c_score = data.get("correctness_score")
         v_score = data.get("vocabulary_score")
         
         if c_score is None:
-            c_score = data.get("score", 90)
+            c_score = data.get("score", 70)
         if v_score is None:
             has_words = any(w.lower() in user_input.lower() for w in expected_phrases)
             v_score = 100 if has_words else 0
@@ -501,7 +511,6 @@ Analyze the student's latest response and return ONLY valid JSON (no markdown):
         data["correctness_score"] = c_score
         data["vocabulary_score"] = v_score
         
-        # Recalculate/ensure overall score
         if v_score == 0:
             data["score"] = c_score
         else:
@@ -513,12 +522,12 @@ Analyze the student's latest response and return ONLY valid JSON (no markdown):
         has_words = any(w.lower() in user_input.lower() for w in expected_phrases)
         v_score = 100 if has_words else 0
         return {
-            "correctness_score": 90,
+            "correctness_score": 65,
             "vocabulary_score": v_score,
-            "score": 90 if v_score == 0 else (90 + v_score) // 2,
-            "feedback_pl": "Dobra odpowiedź! Kontynuuj rozmowę.",
+            "score": 65 if v_score == 0 else (65 + v_score) // 2,
+            "feedback_pl": "Dobra próba. Pamiętaj o pełnych zdaniach!",
             "better_version": user_input,
-            "bot_reply": "I see. Tell me more about it.",
+            "bot_reply": "That sounds interesting! What specifically do you have in mind regarding our goal?",
             "is_goal_achieved": len(chat_history) >= 6
         }
 

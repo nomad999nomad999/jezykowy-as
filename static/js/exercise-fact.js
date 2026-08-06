@@ -81,11 +81,35 @@ Object.assign(Exercise, {
       const cleanText = this._dfFact.fact.replace(/\*\*/g, '');
       this._dfIsSpeaking = true;
       if (btn) btn.innerHTML = '⏸️ Zatrzymaj lektora';
-      Speech.speak(cleanText).then(() => {
+      Speech.speak(cleanText, true, 0.78).then(() => {
         this._dfIsSpeaking = false;
         const b = document.getElementById('dfTtsBtn');
-        if (b) b.innerHTML = '🔊 Odsłuchaj ponowne (EN)';
+        if (b) b.innerHTML = '🔊 Odsłuchaj ponownie (EN)';
       });
+    }
+  },
+
+  async _dfTranslateWord(el, rawWord) {
+    if (event) event.stopPropagation();
+    const clean = rawWord.replace(/[^a-zA-Z']/g, '');
+    if (!clean) return;
+    const badgeId = `df-tip-${clean.toLowerCase()}`;
+    const existing = el.querySelector('.df-word-tooltip');
+    if (existing) {
+      existing.remove();
+      return;
+    }
+    const tempSpan = document.createElement('span');
+    tempSpan.className = 'df-word-tooltip';
+    tempSpan.style.cssText = 'background:#6366f1;color:#ffffff;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;display:inline-block;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.3)';
+    tempSpan.textContent = '⏳ ...';
+    el.appendChild(tempSpan);
+
+    try {
+      const res = await API.get(`/api/word/translate?word=${encodeURIComponent(clean)}`);
+      tempSpan.textContent = `(${res.translation || '—'})`;
+    } catch(e) {
+      tempSpan.textContent = '(Błąd)';
     }
   },
 
@@ -94,14 +118,19 @@ Object.assign(Exercise, {
     const n = this._dfFactNum + 1;
     const wordMap = {};
     (fact.used_words || []).forEach(w => { wordMap[w.word.toLowerCase()] = w.translation; });
+    
+    // Process text: highlighted words and general words interactive click-to-translate
     const factHtml = (fact.fact || '').replace(/\*\*([^*]+)\*\*/g, (_, w) => {
       const pl = wordMap[w.toLowerCase()] || '';
       if (pl) {
         return `<span class="df-highlight df-highlight-clickable" data-pl="${pl}" onclick="this.classList.toggle('df-highlight-active')">${w}</span>`;
       } else {
-        return `<span class="df-highlight">${w}</span>`;
+        return `<span class="df-highlight" onclick="Exercise._dfTranslateWord(this, '${w.replace(/'/g, "\\'")}')">${w}</span>`;
       }
+    }).replace(/\b([a-zA-Z]{3,})\b(?![^<]*>)/g, (w) => {
+      return `<span style="cursor:pointer" onclick="Exercise._dfTranslateWord(this, '${w.replace(/'/g, "\\'")}')">${w}</span>`;
     });
+
     const wordsHtml = (fact.used_words || []).map(w =>
       `<div class="df-word-pill"><span class="df-word-en">${w.word}</span><span class="df-word-pl">${w.translation}</span></div>`
     ).join('');
@@ -121,14 +150,14 @@ Object.assign(Exercise, {
           <div class="df-fact-title">${fact.title || ''}</div>
           <div style="line-height:1.8;font-size:15px;color:var(--text1)">${factHtml}</div>
           <div style="font-size:11px;color:var(--text3);margin-top:10px;text-align:center">
-            💡 Kliknij <span style="color:#fbbf24;font-weight:700">złote słowo</span> aby sprawdzić tłumaczenie
+            💡 Kliknij dowolne słowo w tekście, aby sprawdzić tłumaczenie PL
           </div>
         </div>
 
         <!-- Odtwarzacz Lektora Audio + Przycisk Tłumaczenia PL -->
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
           <button class="btn btn-outline" id="dfTtsBtn" onclick="Exercise._dfToggleSpeech()" style="width:100%;background:rgba(99,102,241,0.12);color:#818cf8;border:1px solid rgba(99,102,241,0.3);font-weight:700">
-            🔊 Odsłuchaj lektorem (EN)
+            🔊 Odsłuchaj lektorem (wolniej EN)
           </button>
           
           <button class="btn btn-outline" onclick="document.getElementById('dfPlTrans').classList.toggle('hidden')" style="width:100%;font-size:13px">
@@ -170,12 +199,15 @@ Object.assign(Exercise, {
             ${[0,1,2].map(i=>`<span class="df-dot ${i<qn?'df-dot-done':i===qn-1?'df-dot-active':''}"></span>`).join('')}
           </div>
         </div>
-        <div class="df-question-card">
+        <div class="df-question-card" style="text-align:center">
           <div class="df-question-label">Prawda czy Fałsz?</div>
-          <div class="df-question-text">${q.statement}</div>
+          <div class="df-question-text" style="font-size:16px;margin:12px 0">${q.statement}</div>
+          <button class="btn btn-outline" style="font-size:12px;padding:6px 14px;border-radius:20px" onclick="Speech.speak('${q.statement.replace(/'/g, "\\'")}', true, 0.82)">
+            🔊 Odsłuchaj pytanie (EN)
+          </button>
         </div>
         <div id="dfFeedback"></div>
-        <div class="df-tf-btns" id="dfTfBtns">
+        <div class="df-tf-btns" id="dfTfBtns" style="margin-top:16px">
           <button class="df-tf-btn df-tf-true" onclick="Exercise._dfAnswer(true)">✅ Prawda</button>
           <button class="df-tf-btn df-tf-false" onclick="Exercise._dfAnswer(false)">❌ Fałsz</button>
         </div>
@@ -183,6 +215,7 @@ Object.assign(Exercise, {
   },
 
   _dfAnswer(isTrue) {
+    if (this._dfNextTimer) clearTimeout(this._dfNextTimer);
     const q = this._dfFact.questions[this._dfQuestionNum];
     const correct = (isTrue === true && q.answer === true) || (isTrue === false && q.answer === false);
     document.querySelectorAll('.df-tf-btn').forEach(b => b.disabled = true);
@@ -195,12 +228,16 @@ Object.assign(Exercise, {
     }
     const fb = document.getElementById('dfFeedback');
     if (fb) {
-      fb.innerHTML = `<div class="df-feedback-box ${correct?'df-feedback-correct':'df-feedback-wrong'}">
-        <strong>${correct ? '✅ Poprawnie!' : '❌ Błąd!'}</strong>
-        <div style="margin-top:4px;font-size:12px;color:var(--text2)">${q.explanation || ''}</div>
-      </div>`;
+      fb.innerHTML = `
+        <div class="df-feedback-box ${correct?'df-feedback-correct':'df-feedback-wrong'}" style="margin-top:14px;padding:14px;border-radius:12px">
+          <strong style="font-size:15px">${correct ? '✅ Poprawnie!' : '❌ Błąd!'}</strong>
+          <div style="margin-top:6px;font-size:13px;color:var(--text2);line-height:1.5">${q.explanation || ''}</div>
+          <button class="btn btn-primary" style="width:100%;margin-top:12px;padding:10px;font-size:14px" onclick="Exercise._dfNextQuestion()">
+            Następne pytanie ➔
+          </button>
+        </div>`;
     }
-    setTimeout(() => this._dfNextQuestion(), 2000);
+    this._dfNextTimer = setTimeout(() => this._dfNextQuestion(), 5000);
   },
 
   _dfNextQuestion() {

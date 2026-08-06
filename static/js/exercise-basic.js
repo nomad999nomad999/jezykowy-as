@@ -1,4 +1,4 @@
-﻿Object.assign(Exercise, {
+Object.assign(Exercise, {
   async startFlashcards() {
     this.data = await API.get('/api/exercise/flashcards');
     this.idx = 0; this.total = this.data.length; this.startTime = Date.now();
@@ -34,7 +34,11 @@
           </div>
           <div class="card-face card-back">
             <div class="card-translation">${w.translation || '—'}</div>
-            <div class="card-sentence" id="fcSentence-${this.idx}">⏳ Ładowanie zdania…</div>
+            <div class="card-sentence" id="fcSentence-${this.idx}" style="margin-top:12px;text-align:center">
+              <button class="btn btn-outline" style="font-size:12px;padding:6px 14px;border-radius:18px;color:#a855f7;border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.08)" onclick="event.stopPropagation();Exercise.fcLoadSentence('${w.word.replace(/'/g, "\\'")}', '${(w.translation||'').replace(/'/g, "\\'")}', ${this.idx})">
+                💡 Wygeneruj zdanie przykładowe (AI)
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -47,15 +51,17 @@
         <p style="text-align:center;color:var(--text3);font-size:11px;margin:0">Wybór zmieni status słowa na liście</p>
       </div>`;
     this.setScore();
-    // Async sentence load — use idx snapshot to avoid race condition
-    const myIdx = this.idx;
-    if (w.translation) {
-      API.get(`/api/gemini/sentence?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation)}`)
-        .then(s => {
-          if (this.idx !== myIdx) return; // user already moved on
-          const el = document.getElementById(`fcSentence-${myIdx}`);
-          if (el) el.innerHTML = `<em>${s.sentence}</em><br><small style="color:var(--text3)">${s.sentence_pl}</small>`;
-        }).catch(() => { const el = document.getElementById(`fcSentence-${myIdx}`); if (el) el.textContent = ''; });
+  },
+
+  async fcLoadSentence(word, translation, idx) {
+    const el = document.getElementById(`fcSentence-${idx}`);
+    if (!el) return;
+    el.innerHTML = '<div class="spinner spinner-small" style="margin:4px auto"></div><span style="font-size:11px;color:var(--text3)">Gemini generuje zdanie...</span>';
+    try {
+      const s = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(word)}&translation=${encodeURIComponent(translation||'')}`);
+      el.innerHTML = `<div style="background:rgba(168,85,247,0.1);border-left:3px solid #a855f7;padding:8px 10px;border-radius:8px;text-align:left"><em style="color:var(--text1)">${s.sentence}</em><br><small style="color:var(--text3);display:block;margin-top:2px">${s.sentence_pl}</small></div>`;
+    } catch(e) {
+      el.innerHTML = '<span style="color:var(--red);font-size:11px">Nie udało się pobrać zdania.</span>';
     }
   },
 
