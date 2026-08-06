@@ -512,7 +512,18 @@ def srs_result():
 def srs_count():
     user, err, code = _require_user()
     if err: return err, code
-    return jsonify({"count": db.get_srs_due_count(user["id"])})
+@app.route("/api/gemini/voice_coach", methods=["POST"])
+def gemini_voice_coach():
+    user, err, code = _require_user()
+    if err: return err, code
+    data = request.json or {}
+    target_sentence = data.get("target_sentence", "")
+    spoken_text = data.get("spoken_text", "")
+    target_word = data.get("target_word", "")
+    
+    import gemini_tasks
+    result = gemini_tasks.evaluate_pronunciation(target_sentence, spoken_text, target_word)
+    return jsonify(result)
 
 
 if __name__ == "__main__":

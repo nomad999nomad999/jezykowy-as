@@ -532,3 +532,62 @@ Analyze the response and return ONLY valid JSON (no markdown):
         }
 
 
+def evaluate_pronunciation(target_sentence: str, spoken_text: str, target_word: str = "") -> dict:
+    """Ocenia wymowę i płynność wypowiedzi na podstawie transkrypcji speech-to-text."""
+    if not spoken_text.strip():
+        return {
+            "score": 0,
+            "feedback_pl": "Nie wykryto głosu. Upewnij się, że mikrofon jest włączony i spróbuj ponownie!",
+            "status_words": []
+        }
+    
+    prompt = f"""You are a master English speech and pronunciation coach for a Polish student.
+Target English sentence to read: "{target_sentence}"
+What the student actually spoke (speech-to-text transcript): "{spoken_text}"
+Target word practiced: "{target_word}"
+
+Analyze the student's pronunciation and fluency:
+1. Compare target sentence with spoken transcript. Calculate an accuracy score (0-100).
+2. Compare word by word. For each word in target sentence, label as "correct", "mispronounced", or "omitted".
+3. Provide constructive, encouraging feedback in POLISH (2-3 sentences). Give actionable phonetic advice for Polish learners (e.g. /θ/ sound, long vowels, silent letters) if any word was mispronounced.
+
+Return ONLY valid JSON (no markdown):
+{{
+  "score": 85,
+  "feedback_pl": "Wskazówki po polsku...",
+  "status_words": [
+    {{"word": "word1", "status": "correct"}},
+    {{"word": "word2", "status": "mispronounced"}}
+  ]
+}}
+"""
+    raw = _ask(prompt)
+    try:
+        s = raw.find("{"); e = raw.rfind("}")
+        if s != -1 and e != -1:
+            raw = raw[s:e+1]
+        res = json.loads(raw)
+        if "score" in res and "feedback_pl" in res:
+            return res
+    except Exception as ex:
+        print(f"evaluate_pronunciation fallback: {ex}")
+    
+    # Fallback comparison if AI fails or formatting error
+    target_words = target_sentence.lower().replace(".", "").replace(",", "").split()
+    spoken_words = spoken_text.lower().replace(".", "").replace(",", "").split()
+    matches = sum(1 for w in target_words if w in spoken_words)
+    score = int((matches / max(1, len(target_words))) * 100)
+    
+    status_words = []
+    for w in target_sentence.split():
+        clean = w.lower().replace(".", "").replace(",", "")
+        st = "correct" if clean in spoken_words else "mispronounced"
+        status_words.append({"word": w, "status": st})
+        
+    return {
+        "score": score,
+        "feedback_pl": f"Wykryto: '{spoken_text}'. Dopasowanie wyniosło {score}%. " + ("Świetna robota!" if score >= 80 else "Ćwicz dalej wymowę!"),
+        "status_words": status_words
+    }
+
+
