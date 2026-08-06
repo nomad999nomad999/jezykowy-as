@@ -1,4 +1,4 @@
-﻿Object.assign(Exercise, {
+Object.assign(Exercise, {
   /* ─ AI VOICE DIALOGUE SIMULATOR ─ */
   async startDialogue() {
     this._dialogueRenderTopicPicker();
@@ -10,6 +10,13 @@
         <h3 style="color:var(--text1);margin-bottom:8px;font-size:18px">Wybierz temat rozmowy</h3>
         <p style="color:var(--text3);font-size:13px;margin-bottom:20px">Rozmawiaj na głos z AI, a system oceni Twoją gramatykę i wymowę.</p>
         <div style="display:flex;flex-direction:column;gap:12px;text-align:left">
+          <button class="ex-card" style="padding:16px;background:linear-gradient(135deg, rgba(129,140,248,0.18), rgba(6,182,212,0.18));border:1px solid var(--purple);text-align:left;width:100%" onclick="Exercise._dialogueInitSession('Losowa Sytuacja')">
+            <span style="font-size:24px;margin-right:12px;float:left">🎲</span>
+            <div style="display:inline-block;vertical-align:middle;width:calc(100% - 40px)">
+              <strong style="color:var(--text1);display:block">Losowa Sytuacja (Surprise Topic)</strong>
+              <span style="color:var(--purple);font-size:12px">AI wygeneruje zupełnie nieprzewidywalny, ciekawy scenariusz życiowy.</span>
+            </div>
+          </button>
           <button class="ex-card" style="padding:16px;background:var(--card);text-align:left;width:100%" onclick="Exercise._dialogueInitSession('Kawiarnia')">
             <span style="font-size:24px;margin-right:12px;float:left">☕</span>
             <div style="display:inline-block;vertical-align:middle;width:calc(100% - 40px)">

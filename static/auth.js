@@ -39,16 +39,15 @@ const API = window.API;
 
 /* ── Speech ── */
 const Speech = {
-  speak(word, cancelExisting = true) {
+  speak(word, cancelExisting = true, customRate = 0.85) {
     return new Promise((resolve) => {
       if (!window.speechSynthesis) { resolve(); return; }
       if (cancelExisting) window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(word);
-      u.lang = 'en-US'; u.rate = 0.9;
+      u.lang = 'en-US'; u.rate = customRate || 0.85;
       u.onend = () => resolve();
       u.onerror = () => resolve();
       window.speechSynthesis.speak(u);
-      // Zabezpieczenie przed zawieszeniem syntezatora w niektórych przeglądarkach
       setTimeout(resolve, 8000);
     });
   },

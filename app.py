@@ -218,7 +218,9 @@ def classify_word():
         milestone = {"count": total}
     quests_done = db.update_quest_progress(user["id"], "classify", 1)
     badges_earned = db.check_and_award_badges(user["id"])
-    return jsonify({"ok": True, "xp": actual, "total_xp": xp, "milestone": milestone,
+    u_curr = db.get_user_by_id(user["id"])
+    final_total_xp = u_curr["xp"] if u_curr else xp
+    return jsonify({"ok": True, "xp": actual, "total_xp": final_total_xp, "milestone": milestone,
                     "quests_done": quests_done, "badges_earned": badges_earned})
 
 @app.route("/api/classify/skip", methods=["POST"])
@@ -309,6 +311,30 @@ def gemini_sentence_builder():
     word = request.args.get("word", "")
     translation = request.args.get("translation", "")
     return jsonify(gemini.generate_sentence_builder(word, translation))
+
+@app.route("/api/word/translate")
+def word_translate():
+    user, err, code = _require_user()
+    if err: return err, code
+    w_str = request.args.get("word", "").strip().lower()
+    if not w_str:
+        return jsonify({"word": "", "translation": "Brak słowa"})
+    
+    with db.get_conn() as conn:
+        row = conn.execute("SELECT translation FROM words WHERE user_id = ? AND LOWER(word) = ?", (user["id"], w_str)).fetchone()
+        if row and row["translation"]:
+            return jsonify({"word": w_str, "translation": row["translation"]})
+        
+        row_any = conn.execute("SELECT translation FROM words WHERE LOWER(word) = ? AND translation != '' LIMIT 1", (w_str,)).fetchone()
+        if row_any and row_any["translation"]:
+            return jsonify({"word": w_str, "translation": row_any["translation"]})
+
+    try:
+        prompt = f"Translate the single English word '{w_str}' to Polish. Respond ONLY with the concise Polish translation, no extra punctuation."
+        tr = gemini._ask(prompt).strip()
+        return jsonify({"word": w_str, "translation": tr})
+    except Exception:
+        return jsonify({"word": w_str, "translation": "Brak tłumaczenia"})
 
 @app.route("/api/gemini/rpg_adventure", methods=["POST"])
 def gemini_rpg_adventure():
@@ -425,7 +451,9 @@ def save_session():
         quests_done += db.update_quest_progress(user["id"], "flashcards", words_cnt)
     badges_earned = db.check_and_award_badges(user["id"],
         session_correct=correct, session_words=words_cnt, session_type=ex_type)
-    return jsonify({"ok": True, "xp_earned": actual_xp, "total_xp": new_xp,
+    u_curr = db.get_user_by_id(user["id"])
+    final_total_xp = u_curr["xp"] if u_curr else new_xp
+    return jsonify({"ok": True, "xp_earned": actual_xp, "total_xp": final_total_xp,
                     "multiplier": mult, "streak": new_streak,
                     "quests_done": quests_done, "badges_earned": badges_earned})
 

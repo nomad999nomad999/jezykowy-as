@@ -35,6 +35,8 @@ Object.assign(Exercise, {
     const selectEl = document.getElementById('hfWordPool');
     const poolType = selectEl ? selectEl.value : (this._currentHfPool || 'review');
     this._currentHfPool = poolType;
+    this.hfPauseSecVal = this.hfPauseSecVal || 3.0;
+    this.hfIncludeSentencesVal = this.hfIncludeSentencesVal !== undefined ? this.hfIncludeSentencesVal : true;
 
     document.getElementById('modalBody').innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:auto"></div><p style="margin-top:12px;color:var(--text3)">Pobieranie słówek...</p></div>';
     
@@ -76,6 +78,16 @@ Object.assign(Exercise, {
     this.beginHandsFreePlayback();
   },
 
+  updatePauseSec(val) {
+    this.hfPauseSecVal = parseFloat(val) || 3.0;
+    const el = document.getElementById('hfPauseVal');
+    if (el) el.textContent = this.hfPauseSecVal + 's';
+  },
+
+  updateIncludeSentences(checked) {
+    this.hfIncludeSentencesVal = !!checked;
+  },
+
   async waitPlaying(ms) {
     const step = 100;
     let elapsed = 0;
@@ -96,7 +108,6 @@ Object.assign(Exercise, {
   async playHandsFreeLoop(loopId) {
     if (this.type !== 'hands_free' || !this.isPlaying || this.hfLoopId !== loopId) return;
     if (this.idx >= this.data.length) {
-      // Zaliczenie całej sesji (wszystkie poprawne dla celów XP)
       this.score = this.data.length;
       this.releaseWakeLock();
       this.showResult(' (tryb Audionauki)');
@@ -114,58 +125,64 @@ Object.assign(Exercise, {
     
     try {
       checkActive();
-      // 1. Wymów słowo po angielsku
-      await Speech.speak(w.word);
-      checkActive();
       
-      // 2. Pauza na pomyślenie
-      const pauseSec = parseFloat(document.getElementById('hfPauseSec')?.value) || 2.5;
-      await this.waitPlaying(pauseSec * 1000);
-      checkActive();
-      
-      // 3. Wymów tłumaczenie po polsku
+      // 1. PO POLSKU: Najpierw czytamy polskie tłumaczenie słowa
       await Speech.speakPl(w.translation);
       checkActive();
-      
-      // Pokazujemy tekst tłumaczenia zamiast "🤔 Słuchaj..."
+
       const transEl = document.getElementById('hfTranslation');
       if (transEl) transEl.textContent = w.translation;
       
-      // 4. Zdania przykładowe (jeśli włączone)
-      const includeSentences = document.getElementById('hfIncludeSentences')?.checked !== false;
+      // 2. Pobieramy zdanie przykładowe z AI (jeśli włączone)
+      const includeSentences = this.hfIncludeSentencesVal !== false;
+      let sentenceRes = null;
+      
       if (includeSentences) {
-        await this.waitPlaying(1200);
-        checkActive();
-        
         const sentEl = document.getElementById('hfSentence');
-        if (sentEl) sentEl.innerHTML = `<span style="color:var(--text3)">⏳ Ładowanie zdania...</span>`;
+        if (sentEl) sentEl.innerHTML = `<span style="color:var(--text3)">⏳ Generowanie zdania PL $\\rightarrow$ EN...</span>`;
         
-        const res = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation)}`);
-        checkActive();
-        
-        if (sentEl) {
-          sentEl.innerHTML = `
-            <div style="color:var(--text1)"><em>${res.sentence}</em></div>
-            <div style="color:var(--text3);font-size:14px;margin-top:4px">${res.sentence_pl}</div>
-          `;
+        try {
+          sentenceRes = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation)}`);
+          checkActive();
+          if (sentEl && sentenceRes) {
+            sentEl.innerHTML = `
+              <div style="color:var(--green);font-weight:600;margin-bottom:4px">${sentenceRes.sentence_pl}</div>
+              <div style="color:var(--text1);font-size:15px"><em>${sentenceRes.sentence}</em></div>
+            `;
+          }
+        } catch (e) {
+          console.warn("Nie udało się pobrać zdania:", e);
         }
-        
-        // Powiedz zdanie angielskie
-        await Speech.speak(res.sentence);
+
+        if (sentenceRes && sentenceRes.sentence_pl) {
+          // Czytamy POLSKIE zdanie najpierw
+          await Speech.speakPl(sentenceRes.sentence_pl);
+          checkActive();
+        }
+      }
+      
+      // 3. PAUZA NA POMYŚLENIE (Czas na zastanowienie się nad tłumaczeniem z PL na EN)
+      const pauseSec = this.hfPauseSecVal || 3.0;
+      await this.waitPlaying(pauseSec * 1000);
+      checkActive();
+      
+      // 4. PO ANGIELSKU: Czytamy angielskie słówko
+      await Speech.speak(w.word);
+      checkActive();
+
+      if (includeSentences && sentenceRes && sentenceRes.sentence) {
+        await this.waitPlaying(500);
         checkActive();
-        
-        await this.waitPlaying(1500);
-        checkActive();
-        // Powiedz zdanie polskie
-        await Speech.speakPl(res.sentence_pl);
+        // Czytamy angielskie zdanie
+        await Speech.speak(sentenceRes.sentence);
         checkActive();
       }
       
       // 5. Pauza przejściowa do kolejnego słowa
-      await this.waitPlaying(2200);
+      await this.waitPlaying(2000);
       checkActive();
       
-      // 6. Następne słowo
+      // 6. Przejście do następnego słowa
       this.idx++;
       this.playHandsFreeLoop(loopId);
     } catch (err) {
@@ -209,19 +226,15 @@ Object.assign(Exercise, {
   noSleepVideo: null,
 
   async requestWakeLock() {
-    // 1. Spróbuj użyć oficjalnego Wake Lock API (działa na localhost oraz HTTPS)
     try {
       if ('wakeLock' in navigator) {
         this.wakeLock = await navigator.wakeLock.request('screen');
-        console.log('Oficjalny Wake Lock aktywowany (HTTPS/localhost).');
         return;
       }
     } catch (err) {
       console.warn('Nie udało się aktywować oficjalnego Wake Lock:', err);
     }
 
-    // 2. Fallback na odtwarzanie niewidocznego wideo w pętli (działa na HTTP / IP sieci lokalnej)
-    console.log('Aktywuję fallback wideo (NoSleep) dla HTTP...');
     if (!this.noSleepVideo) {
       const v = document.createElement('video');
       v.setAttribute('loop', 'true');
@@ -240,28 +253,23 @@ Object.assign(Exercise, {
     
     try {
       await this.noSleepVideo.play();
-      console.log('Niewidoczne wideo NoSleep odtwarza się w pętli.');
     } catch (e) {
       console.warn('Błąd odtwarzania wideo NoSleep:', e);
     }
   },
 
   releaseWakeLock() {
-    // 1. Zwolnij oficjalny Wake Lock
     if (this.wakeLock) {
       this.wakeLock.release().then(() => {
         this.wakeLock = null;
-        console.log('Oficjalny Wake Lock zwolniony.');
       }).catch(err => {
         console.warn('Błąd zwalniania Wake Lock:', err);
       });
     }
 
-    // 2. Zatrzymaj wideo NoSleep
     if (this.noSleepVideo) {
       try {
         this.noSleepVideo.pause();
-        console.log('Wideo NoSleep zatrzymane.');
       } catch (e) {
         console.warn('Błąd zatrzymywania wideo NoSleep:', e);
       }
@@ -270,6 +278,9 @@ Object.assign(Exercise, {
 
   renderHandsFreeCard(w) {
     const pct = Math.round((this.idx / this.data.length) * 100);
+    const pauseVal = this.hfPauseSecVal || 3.0;
+    const incSent = this.hfIncludeSentencesVal !== false;
+
     document.getElementById('modalBody').innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;min-height:350px">
         <div style="font-size:13px;color:var(--text3);margin-bottom:16px">${this.idx + 1} z ${this.data.length} słówek</div>
@@ -277,11 +288,11 @@ Object.assign(Exercise, {
           <div class="progress-bar-fill" style="width:${pct}%"></div>
         </div>
         
-        <div id="hfWord" style="font-size:38px;font-weight:800;color:var(--text1);margin-bottom:8px;word-break:break-word">${w.word}</div>
-        <div id="hfTranslation" style="font-size:22px;color:var(--text2);margin-bottom:24px">🤔 Słuchaj...</div>
+        <div id="hfWord" style="font-size:36px;font-weight:800;color:var(--text1);margin-bottom:8px;word-break:break-word">${w.word}</div>
+        <div id="hfTranslation" style="font-size:22px;color:var(--green);font-weight:600;margin-bottom:24px">${w.translation}</div>
         
         <div id="hfSentence" style="min-height:60px;max-width:400px;margin:20px 0;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:12px;border:1px solid var(--border);width:100%">
-          <span style="color:var(--text3);font-size:14px">Zdanie przykładowe pojawi się automatycznie</span>
+          <span style="color:var(--text3);font-size:14px">Najpierw odtwarzane jest zdanie po polsku...</span>
         </div>
         
         <div style="display:flex;align-items:center;gap:20px;margin:24px 0">
@@ -303,21 +314,16 @@ Object.assign(Exercise, {
           </div>
 
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <label style="font-size:13px;color:var(--text2)">Pauza na odpowiedź</label>
+            <label style="font-size:13px;color:var(--text2)">Pauza na pomyślenie</label>
             <div style="display:flex;align-items:center;gap:6px">
-              <input type="range" id="hfPauseSec" min="1.5" max="5.0" step="0.5" value="2.5" oninput="document.getElementById('hfPauseVal').textContent = this.value + 's'" style="width:80px">
-              <span id="hfPauseVal" style="font-size:13px;color:var(--text1);min-width:30px;text-align:right">2.5s</span>
+              <input type="range" id="hfPauseSec" min="1.5" max="6.0" step="0.5" value="${pauseVal}" oninput="Exercise.updatePauseSec(this.value)" style="width:80px">
+              <span id="hfPauseVal" style="font-size:13px;color:var(--text1);min-width:30px;text-align:right">${pauseVal}s</span>
             </div>
-          </div>
-          
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <label style="font-size:13px;color:var(--text2)">Generuj zdania przez AI</label>
-            <input type="checkbox" id="hfGeminiEnabled" ${localStorage.getItem('gemini_api_enabled') !== 'false' ? 'checked' : ''} onchange="localStorage.setItem('gemini_api_enabled', this.checked ? 'true' : 'false')" style="width:20px;height:20px;cursor:pointer">
           </div>
 
           <div style="display:flex;justify-content:space-between;align-items:center">
             <label style="font-size:13px;color:var(--text2)">Czytaj zdania przykładowe</label>
-            <input type="checkbox" id="hfIncludeSentences" checked style="width:20px;height:20px;cursor:pointer">
+            <input type="checkbox" id="hfIncludeSentences" ${incSent ? 'checked' : ''} onchange="Exercise.updateIncludeSentences(this.checked)" style="width:20px;height:20px;cursor:pointer">
           </div>
         </div>
       </div>

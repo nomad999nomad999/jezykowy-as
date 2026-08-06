@@ -841,6 +841,7 @@ def update_quest_progress(user_id, quest_type, amount=1):
             )
             if newly_done:
                 completed_now.append({"desc": row["description"], "xp": row["xp_reward"], "icon": row["icon"]})
+                add_xp(user_id, row["xp_reward"])
     return completed_now
 
 
