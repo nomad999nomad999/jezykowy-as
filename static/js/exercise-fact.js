@@ -93,23 +93,63 @@ Object.assign(Exercise, {
     if (event) event.stopPropagation();
     const clean = rawWord.replace(/[^a-zA-Z']/g, '');
     if (!clean) return;
-    const badgeId = `df-tip-${clean.toLowerCase()}`;
+    
     const existing = el.querySelector('.df-word-tooltip');
     if (existing) {
       existing.remove();
       return;
     }
+
+    if (!window._wordTransCache) window._wordTransCache = {};
+    const lower = clean.toLowerCase();
+
+    // Fast built-in dictionary for common connector words
+    const FAST_DICT = {
+      "a": "jeden / jakiś", "an": "jeden / jakiś", "the": "ten / ta / to",
+      "in": "w / wewnątrz", "on": "na / o", "at": "przy / w", "to": "do / żeby",
+      "for": "dla / za", "of": "z / o", "with": "z", "without": "bez", "by": "przez / obok",
+      "from": "od / z", "about": "o / około", "into": "do / w", "through": "przez",
+      "and": "i / a", "or": "lub / albo", "but": "ale / lecz", "so": "więc / tak",
+      "if": "jeśli / czy", "as": "jak / jako", "than": "niż", "because": "ponieważ",
+      "is": "jest", "are": "są", "was": "był / była", "were": "byli / były",
+      "be": "być", "been": "był", "being": "będąc", "have": "mieć", "has": "ma", "had": "miał",
+      "do": "robić", "does": "robi", "did": "zrobił", "can": "móc / potrafić",
+      "could": "mógłby", "will": "będzie", "would": "byłby", "should": "powinien",
+      "this": "ten / to", "that": "tamten / że", "these": "te", "those": "tamte",
+      "it": "to / ono", "its": "jego", "he": "on", "his": "jego", "she": "ona", "her": "jej",
+      "they": "oni", "their": "ich", "we": "my", "our": "nasz", "you": "ty / wy", "your": "twój",
+      "i": "ja", "my": "mój", "me": "mnie", "not": "nie", "no": "nie / żaden",
+      "more": "więcej", "most": "najbardziej", "some": "niektóre", "all": "wszystko",
+      "many": "wiele", "very": "bardzo", "also": "również", "which": "który",
+      "what": "co", "who": "kto", "when": "kiedy", "where": "gdzie", "why": "dlaczego", "how": "jak"
+    };
+
     const tempSpan = document.createElement('span');
     tempSpan.className = 'df-word-tooltip';
-    tempSpan.style.cssText = 'background:#6366f1;color:#ffffff;font-size:11px;padding:2px 6px;border-radius:4px;margin-left:4px;display:inline-block;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,0.3)';
+    tempSpan.style.cssText = 'background:linear-gradient(135deg, #6366f1, #8b5cf6);color:#ffffff;font-size:11.5px;padding:2px 7px;border-radius:6px;margin-left:4px;display:inline-block;font-weight:700;box-shadow:0 3px 8px rgba(99,102,241,0.4)';
+
+    if (FAST_DICT[lower]) {
+      tempSpan.textContent = `(${FAST_DICT[lower]})`;
+      el.appendChild(tempSpan);
+      return;
+    }
+
+    if (window._wordTransCache[lower]) {
+      tempSpan.textContent = `(${window._wordTransCache[lower]})`;
+      el.appendChild(tempSpan);
+      return;
+    }
+
     tempSpan.textContent = '⏳ ...';
     el.appendChild(tempSpan);
 
     try {
       const res = await API.get(`/api/word/translate?word=${encodeURIComponent(clean)}`);
-      tempSpan.textContent = `(${res.translation || '—'})`;
+      const tr = res.translation || '—';
+      window._wordTransCache[lower] = tr;
+      tempSpan.textContent = `(${tr})`;
     } catch(e) {
-      tempSpan.textContent = '(Błąd)';
+      tempSpan.textContent = '(brak)';
     }
   },
 
@@ -119,7 +159,7 @@ Object.assign(Exercise, {
     const wordMap = {};
     (fact.used_words || []).forEach(w => { wordMap[w.word.toLowerCase()] = w.translation; });
     
-    // Process text: highlighted words and general words interactive click-to-translate
+    // Process text: highlighted words AND all words clickable for instant translation
     const factHtml = (fact.fact || '').replace(/\*\*([^*]+)\*\*/g, (_, w) => {
       const pl = wordMap[w.toLowerCase()] || '';
       if (pl) {
@@ -127,8 +167,8 @@ Object.assign(Exercise, {
       } else {
         return `<span class="df-highlight" onclick="Exercise._dfTranslateWord(this, '${w.replace(/'/g, "\\'")}')">${w}</span>`;
       }
-    }).replace(/\b([a-zA-Z]{3,})\b(?![^<]*>)/g, (w) => {
-      return `<span style="cursor:pointer" onclick="Exercise._dfTranslateWord(this, '${w.replace(/'/g, "\\'")}')">${w}</span>`;
+    }).replace(/\b([a-zA-Z]{1,})\b(?![^<]*>)/g, (w) => {
+      return `<span style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,0.2);" onclick="Exercise._dfTranslateWord(this, '${w.replace(/'/g, "\\'")}')">${w}</span>`;
     });
 
     const wordsHtml = (fact.used_words || []).map(w =>
@@ -136,7 +176,9 @@ Object.assign(Exercise, {
     ).join('');
 
     const cleanPl = (fact.fact_pl || '').replace(/\*\*/g, '').trim();
-    const finalPl = cleanPl || (fact.used_words ? `Oto zestawienie kluczowych słówek: ${(fact.used_words||[]).map(w=>w.word+' = '+w.translation).join(', ')}.` : 'Tłumaczenie w trakcie przygotowywania...');
+    const finalPl = cleanPl && !cleanPl.startsWith('Oto zestawienie') 
+      ? cleanPl 
+      : (fact.used_words ? `<strong>Kluczowe słówka:</strong> ${(fact.used_words||[]).map(w=>w.word+' = '+w.translation).join(', ')}.` : 'Tłumaczenie w trakcie przygotowywania...');
 
     document.getElementById('modalBody').innerHTML = `
       <div style="padding:16px;max-width:480px;margin:0 auto">
