@@ -478,6 +478,27 @@ def word_of_day():
     wod = db.get_word_of_day()
     return jsonify(wod) if wod else jsonify({"error": "brak"}), (200 if wod else 404)
 
+@app.route("/api/word/translate")
+def translate_word_api():
+    user, err, code = _require_user()
+    if err: return err, code
+    word = request.args.get("word", "").strip()
+    if not word:
+        return jsonify({"error": "Brak słowa"}), 400
+    
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT translation FROM words WHERE LOWER(word) = LOWER(?) AND translation != '' LIMIT 1",
+            (word,)
+        ).fetchone()
+        if row and row["translation"]:
+            return jsonify({"word": word, "translation": row["translation"]})
+    
+    tr = gemini._ask(f"Przetłumacz jedno słowo z angielskiego na polski: '{word}'. Podaj TYLKO krótkie tłumaczenie (1-3 słowa po polsku), bez komentarzy.")
+    tr = tr.strip().strip('"').strip("'") if tr else "—"
+    return jsonify({"word": word, "translation": tr})
+
+
 @app.route("/api/quests")
 def get_quests():
     user, err, code = _require_user()

@@ -1649,6 +1649,17 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .df-highlight-clickable { cursor: pointer; }
 .df-highlight:not(.df-highlight-clickable) { cursor: default; opacity: 0.85; }
 
+.df-interactive-word {
+  cursor: pointer;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.25);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.df-interactive-word:hover {
+  color: #818cf8;
+  border-bottom-color: #818cf8;
+}
+
+
 
 
 /* === static/css/exercise-quick.css === */

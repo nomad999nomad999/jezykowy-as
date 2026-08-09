@@ -19,7 +19,7 @@ _CONTEXTS = [
 def _ask(prompt: str, max_retries: int = 2) -> str:
     """Wysyła prompt do Gemini z obsługą rate limit (429) i przełączaniem modeli."""
     import time
-    models = ["gemini-2.0-flash", "gemini-1.5-flash"]
+    models = ["gemini-2.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash"]
     for model_name in models:
         for attempt in range(max_retries):
             try:
@@ -264,7 +264,7 @@ _DAILY_FACT_CATEGORIES = {
 
 
 def generate_daily_fact(category_en: str, category_pl: str, user_words: list) -> dict:
-    """Generuje ciekawostkę naukową z wyróżnionymi słowami użytkownika, polskim tłumaczeniem akapitu + quiz T/F."""
+    """Generuje ciekawostkę naukową z wyróżnionymi słowami użytkownika, polskim tłumaczeniem akapitu, tłumaczeniem pytań + quiz T/F."""
     words_str = ", ".join(f'"{w["word"]}" ({w.get("translation","?")})' for w in user_words[:15])
     prompt = f"""You are creating educational English content for a Polish speaker learning English.
 
@@ -280,14 +280,15 @@ Return ONLY valid JSON (no markdown):
     {{"word": "used_word", "translation": "polskie tłumaczenie", "context": "short phrase using it"}}
   ],
   "questions": [
-    {{"statement": "One-sentence T/F statement about the fact only.", "answer": true, "explanation": "Krótkie wyjaśnienie po polsku."}},
-    {{"statement": "Another statement.", "answer": false, "explanation": "Wyjaśnienie."}},
-    {{"statement": "Third statement.", "answer": true, "explanation": "Wyjaśnienie."}}
+    {{"statement": "One-sentence T/F statement in English about the fact.", "statement_pl": "Dokładne tłumaczenie zdania pytania na język polski.", "answer": true, "explanation": "Krótkie wyjaśnienie po polsku."}},
+    {{"statement": "Another statement in English.", "statement_pl": "Tłumaczenie po polsku.", "answer": false, "explanation": "Wyjaśnienie."}},
+    {{"statement": "Third statement in English.", "statement_pl": "Tłumaczenie po polsku.", "answer": true, "explanation": "Wyjaśnienie."}}
   ]
 }}
 
 Rules:
 - Include "fact_pl" which is a full, accurate Polish translation of the entire fact text so the learner can understand difficult words.
+- Each item in "questions" MUST contain "statement" (English) AND "statement_pl" (full Polish translation of the statement).
 - Exactly 3 questions, mix of true/false (not all same answer)
 - Questions answerable ONLY from the fact text
 - Fact must be genuinely interesting and accurate
@@ -304,6 +305,10 @@ Rules:
         if not data.get("fact_pl"):
             clean_fact = data["fact"].replace("**", "")
             data["fact_pl"] = _ask(f"Przetłumacz ten tekst na język polski:\n{clean_fact}") or f"Tłumaczenie: {clean_fact}"
+        # Make sure every question has statement_pl
+        for q in data.get("questions", []):
+            if not q.get("statement_pl"):
+                q["statement_pl"] = _ask(f"Przetłumacz to zdanie na język polski:\n{q.get('statement', '')}") or q.get("statement", "")
         return data
     except Exception as ex:
         print(f"generate_daily_fact fallback: {ex}")
@@ -314,9 +319,9 @@ Rules:
             "fact_pl": f"Naukowcy badają, jak żywe organizmy rozwijają się w różnych środowiskach. Wiele organizmów przystosowuje się, aby przetrwać w ekstremalnych warunkach. Badania pokazują, że nawet małe zmiany środowiskowe mogą mieć znaczący wpływ. Zrozumienie tych procesów jest kluczowe dla ochrony naszej planety.",
             "used_words": [{"word": w["word"], "translation": w.get("translation","?"), "context": f"how things {w['word']}"}],
             "questions": [
-                {"statement": "Small environmental changes can have significant effects.", "answer": True, "explanation": "Tekst wprost to stwierdza."},
-                {"statement": "Scientists fully understand all adaptation processes.", "answer": False, "explanation": "Tekst mówi że 'badają', nie że w pełni rozumieją."},
-                {"statement": "Understanding natural processes helps protect our planet.", "answer": True, "explanation": "Tekst kończy się tym stwierdzeniem."}
+                {"statement": "Small environmental changes can have significant effects.", "statement_pl": "Niewielkie zmiany środowiskowe mogą mieć znaczące skutki.", "answer": True, "explanation": "Tekst wprost to stwierdza."},
+                {"statement": "Scientists fully understand all adaptation processes.", "statement_pl": "Naukowcy w pełni rozumieją wszystkie procesy adaptacji.", "answer": False, "explanation": "Tekst mówi że 'badają', nie że w pełni rozumieją."},
+                {"statement": "Understanding natural processes helps protect our planet.", "statement_pl": "Zrozumienie procesów naturalnych pomaga chronić naszą planetę.", "answer": True, "explanation": "Tekst kończy się tym stwierdzeniem."}
             ]
         }
 

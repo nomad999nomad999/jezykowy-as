@@ -76,17 +76,86 @@ Object.assign(Exercise, {
     if (this._dfIsSpeaking) {
       if (window.speechSynthesis) window.speechSynthesis.cancel();
       this._dfIsSpeaking = false;
-      if (btn) btn.innerHTML = '🔊 Odsłuchaj lektorem (EN)';
+      if (btn) btn.innerHTML = '🔊 Lektor (EN)';
     } else {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
       const cleanText = this._dfFact.fact.replace(/\*\*/g, '');
       this._dfIsSpeaking = true;
-      if (btn) btn.innerHTML = '⏸️ Zatrzymaj lektora';
+      if (btn) btn.innerHTML = '⏸️ Zatrzymaj EN';
       Speech.speak(cleanText, true, 0.78).then(() => {
         this._dfIsSpeaking = false;
         const b = document.getElementById('dfTtsBtn');
-        if (b) b.innerHTML = '🔊 Odsłuchaj ponownie (EN)';
+        if (b) b.innerHTML = '🔊 Lektor (EN)';
       });
     }
+  },
+
+  _dfToggleSpeechPl() {
+    if (!this._cleanPlText) return;
+    const btn = document.getElementById('dfTtsPlBtn');
+    if (this._dfIsSpeakingPl) {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      this._dfIsSpeakingPl = false;
+      if (btn) btn.innerHTML = '🇵🇱 Lektor (PL)';
+    } else {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      this._dfIsSpeakingPl = true;
+      if (btn) btn.innerHTML = '⏸️ Zatrzymaj PL';
+      Speech.speakPl(this._cleanPlText).then(() => {
+        this._dfIsSpeakingPl = false;
+        const b = document.getElementById('dfTtsPlBtn');
+        if (b) b.innerHTML = '🇵🇱 Lektor (PL)';
+      });
+    }
+  },
+
+  _dfFormatInteractiveText(text, wordMap = {}) {
+    if (!text) return '';
+
+    // Extract all **target_word** tokens first to avoid tag collisions
+    const targetTokens = [];
+    let processed = text.replace(/\*\*([^*]+)\*\*/g, (_, w) => {
+      const idx = targetTokens.length;
+      targetTokens.push(w);
+      return `[[[${idx}]]]`;
+    });
+
+    // Make all plain words interactive
+    processed = processed.replace(/\b([a-zA-Z']+)\b/g, (w) => {
+      const esc = w.replace(/'/g, "\\'");
+      return `<span class="df-interactive-word" onclick="Exercise._dfTranslateWord(this, '${esc}')">${w}</span>`;
+    });
+
+    // Put target words back with highlight styling & click handler
+    targetTokens.forEach((targetWord, idx) => {
+      const lower = targetWord.toLowerCase();
+      const pl = wordMap[lower] || '';
+      const escTarget = targetWord.replace(/'/g, "\\'");
+      let repl = '';
+      if (pl) {
+        const escPl = pl.replace(/'/g, "\\'");
+        repl = `<span class="df-highlight df-highlight-clickable" data-pl="${escPl}" onclick="Exercise._dfToggleTargetTranslation(this, '${escPl}')">${targetWord}</span>`;
+      } else {
+        repl = `<span class="df-highlight df-highlight-clickable" onclick="Exercise._dfTranslateWord(this, '${escTarget}')">${targetWord}</span>`;
+      }
+      processed = processed.replace(`[[[${idx}]]]`, repl);
+    });
+
+    return processed;
+  },
+
+  _dfToggleTargetTranslation(el, pl) {
+    if (event) event.stopPropagation();
+    const existing = el.querySelector('.df-word-tooltip');
+    if (existing) {
+      existing.remove();
+      return;
+    }
+    const tempSpan = document.createElement('span');
+    tempSpan.className = 'df-word-tooltip';
+    tempSpan.style.cssText = 'background:linear-gradient(135deg, #10b981, #059669);color:#ffffff;font-size:11.5px;padding:2px 7px;border-radius:6px;margin-left:4px;display:inline-block;font-weight:700;box-shadow:0 3px 8px rgba(16,185,129,0.4)';
+    tempSpan.textContent = `(${pl})`;
+    el.appendChild(tempSpan);
   },
 
   async _dfTranslateWord(el, rawWord) {
@@ -160,16 +229,7 @@ Object.assign(Exercise, {
     (fact.used_words || []).forEach(w => { wordMap[w.word.toLowerCase()] = w.translation; });
     
     // Process text: highlighted words AND all words clickable for instant translation
-    const factHtml = (fact.fact || '').replace(/\*\*([^*]+)\*\*/g, (_, w) => {
-      const pl = wordMap[w.toLowerCase()] || '';
-      if (pl) {
-        return `<span class="df-highlight df-highlight-clickable" data-pl="${pl}" onclick="this.classList.toggle('df-highlight-active')">${w}</span>`;
-      } else {
-        return `<span class="df-highlight" onclick="Exercise._dfTranslateWord(this, '${w.replace(/'/g, "\\'")}')">${w}</span>`;
-      }
-    }).replace(/\b([a-zA-Z]{1,})\b(?![^<]*>)/g, (w) => {
-      return `<span style="cursor:pointer;border-bottom:1px dotted rgba(255,255,255,0.2);" onclick="Exercise._dfTranslateWord(this, '${w.replace(/'/g, "\\'")}')">${w}</span>`;
-    });
+    const factHtml = this._dfFormatInteractiveText(fact.fact || '', wordMap);
 
     const wordsHtml = (fact.used_words || []).map(w =>
       `<div class="df-word-pill"><span class="df-word-en">${w.word}</span><span class="df-word-pl">${w.translation}</span></div>`
@@ -179,6 +239,8 @@ Object.assign(Exercise, {
     const finalPl = cleanPl && !cleanPl.startsWith('Oto zestawienie') 
       ? cleanPl 
       : (fact.used_words ? `<strong>Kluczowe słówka:</strong> ${(fact.used_words||[]).map(w=>w.word+' = '+w.translation).join(', ')}.` : 'Tłumaczenie w trakcie przygotowywania...');
+
+    this._cleanPlText = finalPl;
 
     document.getElementById('modalBody').innerHTML = `
       <div style="padding:16px;max-width:480px;margin:0 auto">
@@ -196,14 +258,19 @@ Object.assign(Exercise, {
           </div>
         </div>
 
-        <!-- Odtwarzacz Lektora Audio + Przycisk Tłumaczenia PL -->
+        <!-- Lektor Audio (EN/PL) + Przycisk Tłumaczenia PL -->
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-          <button class="btn btn-outline" id="dfTtsBtn" onclick="Exercise._dfToggleSpeech()" style="width:100%;background:rgba(99,102,241,0.12);color:#818cf8;border:1px solid rgba(99,102,241,0.3);font-weight:700">
-            🔊 Odsłuchaj lektorem (wolniej EN)
-          </button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button class="btn btn-outline" id="dfTtsBtn" onclick="Exercise._dfToggleSpeech()" style="background:rgba(99,102,241,0.12);color:#818cf8;border:1px solid rgba(99,102,241,0.3);font-weight:700;font-size:12.5px;padding:9px 6px">
+              🔊 Lektor (EN)
+            </button>
+            <button class="btn btn-outline" id="dfTtsPlBtn" onclick="Exercise._dfToggleSpeechPl()" style="background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.3);font-weight:700;font-size:12.5px;padding:9px 6px">
+              🇵🇱 Lektor (PL)
+            </button>
+          </div>
           
-          <button class="btn btn-outline" onclick="document.getElementById('dfPlTrans').classList.toggle('hidden')" style="width:100%;font-size:13px">
-            🇵🇱 Pokaż / Ukryj tłumaczenie całego tekstu (PL)
+          <button class="btn btn-outline" onclick="document.getElementById('dfPlTrans').classList.toggle('hidden')" style="width:100%;font-size:13px;padding:9px">
+            🇵🇱 Pokaż / Ukryj pełne tłumaczenie (PL)
           </button>
           <div id="dfPlTrans" class="hidden" style="background:rgba(255,255,255,0.04);border-left:3px solid var(--green);padding:12px;border-radius:8px;font-size:13.5px;color:var(--text2);line-height:1.6">
             <strong style="color:var(--green);display:block;margin-bottom:4px">Tłumaczenie polskie:</strong>
@@ -212,7 +279,7 @@ Object.assign(Exercise, {
         </div>
 
         ${wordsHtml ? `<div class="df-words-section">
-          <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Słowa z Twojej listy:</div>
+          <div style="font-size:11px;color:var(--text3);font-weight:700;text-transform:uppercase;margin-bottom:8px">Słowa z Twojej listy & kluczowe pojęcia:</div>
           <div class="df-words-row">${wordsHtml}</div>
         </div>` : ''}
         
@@ -233,6 +300,9 @@ Object.assign(Exercise, {
     const q = this._dfFact.questions[this._dfQuestionNum];
     const qn = this._dfQuestionNum + 1;
     const fn = this._dfFactNum + 1;
+    const statementHtml = this._dfFormatInteractiveText(q.statement || '');
+    const statementPl = q.statement_pl || 'Tłumaczenie pytania w trakcie przygotowywania...';
+
     document.getElementById('modalBody').innerHTML = `
       <div style="padding:16px;max-width:480px;margin:0 auto">
         <div class="df-progress-bar">
@@ -243,10 +313,29 @@ Object.assign(Exercise, {
         </div>
         <div class="df-question-card" style="text-align:center">
           <div class="df-question-label">Prawda czy Fałsz?</div>
-          <div class="df-question-text" style="font-size:16px;margin:12px 0">${q.statement}</div>
-          <button class="btn btn-outline" style="font-size:12px;padding:6px 14px;border-radius:20px" onclick="Speech.speak('${q.statement.replace(/'/g, "\\'")}', true, 0.82)">
-            🔊 Odsłuchaj pytanie (EN)
+          <div class="df-question-text" style="font-size:16px;margin:12px 0">${statementHtml}</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
+            💡 Kliknij słowo w pytaniu, aby sprawdzić znaczenie PL
+          </div>
+
+          <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px;flex-wrap:wrap">
+            <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;border-radius:20px;background:rgba(99,102,241,0.12);color:#818cf8;border:1px solid rgba(99,102,241,0.3)" 
+              onclick="Speech.speak('${q.statement.replace(/'/g, "\\'")}', true, 0.82)">
+              🔊 Lektor pytanie (EN)
+            </button>
+            <button class="btn btn-outline" style="font-size:12px;padding:6px 12px;border-radius:20px;background:rgba(16,185,129,0.12);color:#10b981;border:1px solid rgba(16,185,129,0.3)" 
+              onclick="Speech.speakPl('${statementPl.replace(/'/g, "\\'")}', true)">
+              🇵🇱 Lektor (PL)
+            </button>
+          </div>
+
+          <button class="btn btn-outline" onclick="document.getElementById('dfQPlTrans').classList.toggle('hidden')" style="font-size:12px;padding:5px 12px;border-radius:20px;width:100%;margin-top:4px">
+            🇵🇱 Pokaż / Ukryj tłumaczenie pytania (PL)
           </button>
+          <div id="dfQPlTrans" class="hidden" style="background:rgba(255,255,255,0.04);border-left:3px solid var(--green);padding:10px;border-radius:8px;font-size:13px;color:var(--text2);margin-top:8px;text-align:left;line-height:1.5">
+            <strong style="color:var(--green);display:block;margin-bottom:2px">Tłumaczenie pytania:</strong>
+            ${statementPl}
+          </div>
         </div>
         <div id="dfFeedback"></div>
         <div class="df-tf-btns" id="dfTfBtns" style="margin-top:16px">
@@ -274,6 +363,11 @@ Object.assign(Exercise, {
         <div class="df-feedback-box ${correct?'df-feedback-correct':'df-feedback-wrong'}" style="margin-top:14px;padding:14px;border-radius:12px">
           <strong style="font-size:15px">${correct ? '✅ Poprawnie!' : '❌ Błąd!'}</strong>
           <div style="margin-top:6px;font-size:13px;color:var(--text2);line-height:1.5">${q.explanation || ''}</div>
+          ${q.explanation ? `
+            <button class="btn btn-outline" style="font-size:12px;padding:5px 12px;border-radius:16px;margin-top:8px" onclick="Speech.speakPl('${(q.explanation||'').replace(/'/g, "\\'")}')">
+              🔊 Odsłuchaj wyjaśnienie (PL)
+            </button>
+          ` : ''}
           <button class="btn btn-primary" style="width:100%;margin-top:12px;padding:10px;font-size:14px" onclick="Exercise._dfNextQuestion()">
             Następne pytanie ➔
           </button>
