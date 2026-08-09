@@ -1,4 +1,4 @@
-﻿Object.assign(Exercise, {
+Object.assign(Exercise, {
   /* ─ SUPER QUIZ (Combined Fiszki + Wybór + Audio) ─ */
   async startSuperQuiz() {
     if (this.sqTimeout) { clearTimeout(this.sqTimeout); this.sqTimeout = null; }
@@ -41,6 +41,12 @@
         </div>
       </div>
 
+      <div class="sq-sentence-container" id="sqSentence-${this.idx}" style="margin:10px 0">
+        <button class="btn btn-outline" style="font-size:12px;padding:8px 14px;border-radius:18px;color:#a855f7;border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.08);width:100%;cursor:pointer" onclick="Exercise.sqLoadSentence('${w.word.replace(/'/g, "\\'")}', '${(w.translation||'').replace(/'/g, "\\'")}', ${this.idx})">
+          💡 Wygeneruj zdanie przykładowe (AI)
+        </button>
+      </div>
+
       <div class="mc-options" id="sqOptions">
         ${w.options.map((opt, i) => `
           <button class="mc-option" id="sqo${i}" onclick="Exercise.sqAnswer('${opt.replace(/'/g,"\\'")}','${w.translation.replace(/'/g,"\\'")}',${w.id},${i})">
@@ -63,6 +69,55 @@
     this.setScore();
   },
 
+  async sqLoadSentence(word, translation, idx) {
+    const container = document.getElementById(`sqSentence-${idx}`);
+    if (!container) return;
+
+    if (this.sqTimeout) {
+      clearTimeout(this.sqTimeout);
+      this.sqTimeout = null;
+    }
+
+    container.innerHTML = `
+      <div style="text-align:center;padding:8px">
+        <div class="spinner spinner-small" style="margin:0 auto 4px"></div>
+        <span style="font-size:12px;color:var(--text3)">Gemini generuje zdanie przykładowe…</span>
+      </div>`;
+
+    try {
+      const data = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(word)}&translation=${encodeURIComponent(translation || '')}`);
+      
+      let sentenceHtml = data.sentence || '';
+      if (word && sentenceHtml) {
+        const re = new RegExp(`\\b(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})\\b`, 'gi');
+        sentenceHtml = sentenceHtml.replace(re, '<strong class="sq-highlight-word">$1</strong>');
+      }
+
+      const safeSentence = (data.sentence || '').replace(/'/g, "\\'");
+
+      container.innerHTML = `
+        <div class="sq-sentence-box">
+          <div class="sq-sentence-en">
+            <div>💬 ${sentenceHtml}</div>
+            <button class="sq-speak-sentence-btn" onclick="Speech.speak('${safeSentence}'); event.stopPropagation();">🔊 Słuchaj</button>
+          </div>
+          <div class="sq-sentence-pl">🇵🇱 ${data.sentence_pl || ''}</div>
+          ${data.tip ? `<div class="sq-sentence-tip">💡 Tip: ${data.tip}</div>` : ''}
+        </div>
+      `;
+
+      Speech.speak(data.sentence);
+    } catch (e) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:6px;color:var(--red);font-size:12px">
+          Nie udało się pobrać zdania z Gemini.
+        </div>`;
+    }
+
+    const nextBtn = document.getElementById('sqNextBtn');
+    if (nextBtn) nextBtn.style.display = 'block';
+  },
+
   sqAnswer(chosen, correct, wordId, optionIdx) {
     const ok = chosen === correct;
     if (ok) this.score++;
@@ -75,6 +130,12 @@
       document.querySelectorAll('#sqOptions .mc-option').forEach(b => {
         if (b.textContent.trim() === correct) b.classList.add('correct');
       });
+      // Automatycznie wygeneruj zdanie przy błędnej odpowiedzi, jeśli jeszcze nie zostało wygenerowane
+      const w = this.data[this.idx];
+      const container = document.getElementById(`sqSentence-${this.idx}`);
+      if (w && container && !container.querySelector('.sq-sentence-box')) {
+        this.sqLoadSentence(w.word, w.translation, this.idx);
+      }
     }
     // Disable all options
     document.querySelectorAll('#sqOptions .mc-option').forEach(b => b.disabled = true);
@@ -82,15 +143,14 @@
     // Submit review result
     API.post('/api/review_result', { word_id: wordId, correct: ok });
 
-    // Auto-advance after showing result (1.2s if correct, 2s if wrong so they can see correct answer)
-    const delay = ok ? 1200 : 2000;
+    // Keep the Continue button displayed
+    const nextBtn = document.getElementById('sqNextBtn');
+    if (nextBtn) nextBtn.style.display = 'block';
+
+    const delay = ok ? 1400 : 3500;
     this.sqTimeout = setTimeout(() => {
       this.sqNext();
     }, delay);
-
-    // Keep the Continue button displayed (in case they want to click it immediately to skip the wait)
-    const nextBtn = document.getElementById('sqNextBtn');
-    if (nextBtn) nextBtn.style.display = 'block';
   },
 
   async sqReclassify(wordId, status, btn) {

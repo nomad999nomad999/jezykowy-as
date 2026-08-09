@@ -596,3 +596,144 @@ Return ONLY valid JSON (no markdown):
     }
 
 
+def generate_sentence_translation_task(word: str, translation: str, difficulty: str = "medium", count: int = 1) -> dict:
+    """Generuje zadanie tłumaczenia zdań (z polskiego na angielski) na określonym poziomie trudności."""
+    diff_desc = {
+        "easy": "Easy level (A1-A2). Short, simple sentences (4-7 words). Basic grammar.",
+        "medium": "Medium level (B1-B2). Everyday conversational sentences (8-12 words). Standard tenses.",
+        "hard": "Hard level (C1-C2). Advanced complex sentences (12-18 words). Advanced grammar, idioms, or conditional clauses."
+    }.get(difficulty, "Medium level (B1-B2)")
+
+    prompt = f"""You are creating an English-learning translation exercise for a Polish speaker.
+Target English Word: "{word}" (Polish meaning: "{translation}")
+Difficulty: {difficulty} ({diff_desc})
+Number of sentences to generate: {count} (generate exactly {count} sentence object(s) in "sentences" array)
+
+Requirements:
+1. Generate natural Polish sentence(s) ("sentence_pl") that test how to translate into English using the target word "{word}" (or its natural English variation).
+2. Provide the ideal English model translation ("expected_en").
+3. Provide 2-3 acceptable alternative English translations ("alternatives_en").
+
+Return ONLY valid JSON (no markdown):
+{{
+  "word": "{word}",
+  "translation": "{translation}",
+  "difficulty": "{difficulty}",
+  "sentences": [
+    {{
+      "sentence_pl": "Polskie zdanie do przetłumaczenia...",
+      "expected_en": "Ideal English translation...",
+      "alternatives_en": ["Alt translation 1...", "Alt translation 2..."]
+    }}
+  ]
+}}
+"""
+    raw = _ask(prompt)
+    try:
+        s = raw.find("{"); e = raw.rfind("}")
+        if s != -1 and e != -1:
+            raw = raw[s:e+1]
+        res = json.loads(raw)
+        if "sentences" in res and len(res["sentences"]) > 0:
+            return res
+    except Exception as ex:
+        print(f"generate_sentence_translation_task fallback: {ex}")
+
+    # Fallback if Gemini is offline
+    fallback_sentences = [
+        {
+            "sentence_pl": f"Jak najszybciej muszę {translation if translation else word} ten problem.",
+            "expected_en": f"I need to {word} this problem as soon as possible.",
+            "alternatives_en": [f"I must {word} this issue quickly."]
+        }
+    ]
+    if count >= 2:
+        fallback_sentences.append({
+            "sentence_pl": f"Czy wiesz jak {translation if translation else word} w tej sytuacji?",
+            "expected_en": f"Do you know how to {word} in this situation?",
+            "alternatives_en": [f"Do you know how to {word} here?"]
+        })
+    return {
+        "word": word,
+        "translation": translation,
+        "difficulty": difficulty,
+        "sentences": fallback_sentences[:count]
+    }
+
+
+def evaluate_sentence_translation(sentence_pl: str, expected_en: str, user_translation: str, target_word: str = "") -> dict:
+    """Ocenia tłumaczenie użytkownika (głosowe lub pisemne) z polskiego na angielski z rygorystycznym sprawdzaniem kompletności zdania."""
+    prompt = f"""You are a strict yet constructive English language evaluator analyzing a Polish student's English translation.
+
+Original Polish sentence to translate: "{sentence_pl}"
+Model English translation: "{expected_en}"
+Student's attempt (typed or spoken): "{user_translation}"
+Target word being practiced: "{target_word}"
+
+STRICT GRADING RULES:
+1. COMPLETENESS CHECK (CRITICAL): Does the student's attempt translate the ENTIRE Polish sentence?
+   - If the student only translates a fragment or phrase (e.g., missing subject, verb, or major clause like "Zakup nowego samochodu to..."), max score is 50%, and "is_correct" MUST be false!
+2. ACCURACY & GRAMMAR (0-100 score):
+   - 90-100: Complete sentence, correct meaning, proper grammar, target word used well.
+   - 75-89: Complete sentence, correct meaning, minor typo or minor word order issue.
+   - 50-74: Incomplete sentence (phrase fragment) OR significant grammatical errors.
+   - 0-49: Wrong meaning, incorrect target word, or major parts missing.
+3. SET "is_correct": true ONLY IF score >= 75 AND the student translated a full sentence (not a fragment).
+4. PROVIDE FEEDBACK IN POLISH ("feedback_pl"):
+   - If incomplete, explicitly tell the student that they only translated a fragment (e.g., "Przetłumaczyłeś tylko fragment zdania...").
+5. GRAMMAR TIP IN POLISH ("grammar_tip"): 1 short sentence.
+
+Return ONLY valid JSON (no markdown):
+{{
+  "score": 45,
+  "is_correct": false,
+  "feedback_pl": "Przetłumaczyłeś tylko końcowy fragment zdania ('spory wydatek dla nas'). Zabrakło początkowej części zdania odnoszącej się do zakupu samochodu ('Buying a new car is...').",
+  "expected_en": "{expected_en}",
+  "user_translation": "{user_translation}",
+  "grammar_tip": "Pamiętaj, aby zawsze tłumaczyć całe zdanie wraz z podmiotem i orzeczeniem."
+}}
+"""
+    raw = _ask(prompt)
+    try:
+        s = raw.find("{"); e = raw.rfind("}")
+        if s != -1 and e != -1:
+            raw = raw[s:e+1]
+        res = json.loads(raw)
+        if "score" in res and "feedback_pl" in res:
+            # Post-check completeness safety net
+            u_w = user_translation.lower().strip().split()
+            e_w = expected_en.lower().strip().split()
+            if len(e_w) >= 5 and len(u_w) < len(e_w) * 0.55:
+                res["score"] = min(res["score"], 50)
+                res["is_correct"] = False
+                if "fragment" not in res["feedback_pl"].lower():
+                    res["feedback_pl"] = f"Przetłumaczyłeś tylko część zdania ({len(u_w)} z {len(e_w)} słów). " + res["feedback_pl"]
+            return res
+    except Exception as ex:
+        print(f"evaluate_sentence_translation fallback: {ex}")
+
+    # Basic fallback scoring with strict length check
+    u_clean = user_translation.lower().strip().replace(".", "").replace(",", "")
+    e_clean = expected_en.lower().strip().replace(".", "").replace(",", "")
+    u_words = u_clean.split()
+    e_words = e_clean.split()
+    matches = sum(1 for w in u_words if w in e_words)
+    score = int((matches / max(1, len(e_words))) * 100)
+    
+    # Strictly cap score if fragment
+    if len(e_words) >= 4 and len(u_words) < len(e_words) * 0.6:
+        score = min(score, 45)
+
+    is_ok = score >= 75
+    return {
+        "score": score,
+        "is_correct": is_ok,
+        "feedback_pl": f"Twój wynik: {score}%. " + ("Świetne pełne tłumaczenie!" if is_ok else "Przetłumaczono tylko część zdania. Zwróć uwagę na wzorcową odpowiedź."),
+        "expected_en": expected_en,
+        "user_translation": user_translation,
+        "grammar_tip": "Zawsze staraj się przetłumaczyć całe zdanie po angielsku."
+    }
+
+
+
+

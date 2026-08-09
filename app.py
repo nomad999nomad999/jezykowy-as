@@ -212,6 +212,12 @@ def classify_word():
     data = request.json
     db.add_word(data["word"].strip().lower(), data.get("translation",""), data["status"], "coca", user["id"])
     xp, lvl, actual, mult = db.add_xp(user["id"], 2)
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO sessions (user_id,exercise_type,words_practiced,correct,duration_sec,xp_earned) VALUES (?,?,?,?,?,?)",
+            (user["id"], "classify", 1, 1, 0, actual)
+        )
+    db._update_streak(user["id"])
     total = db.get_classified_count(user["id"])
     milestone = None
     if total > 0 and total % 50 == 0:
@@ -311,6 +317,59 @@ def gemini_sentence_builder():
     word = request.args.get("word", "")
     translation = request.args.get("translation", "")
     return jsonify(gemini.generate_sentence_builder(word, translation))
+
+@app.route("/api/gemini/sentence_translation", methods=["GET", "POST"])
+def gemini_sentence_translation():
+    user, err, code = _require_user()
+    if err: return err, code
+    json_data = request.get_json(silent=True) or {}
+    word = request.args.get("word") or json_data.get("word") or ""
+    translation = request.args.get("translation") or json_data.get("translation") or ""
+    difficulty = request.args.get("difficulty") or json_data.get("difficulty") or "medium"
+    num_sentences = int(request.args.get("num_sentences") or json_data.get("num_sentences") or 1)
+    
+    if not word:
+        pool = db.get_words_for_review(("NIE_ZNAM","TROCHE"), 15, user["id"])
+        if pool:
+            w_obj = random.choice(pool)
+            word = w_obj["word"]
+            translation = w_obj["translation"]
+        else:
+            word = "achieve"
+            translation = "osiągnąć"
+            
+    res = gemini.generate_sentence_translation_task(word, translation, difficulty, num_sentences)
+    return jsonify(res)
+
+@app.route("/api/gemini/evaluate_sentence_translation", methods=["POST"])
+def gemini_evaluate_sentence_translation():
+    user, err, code = _require_user()
+    if err: return err, code
+    data = request.json or {}
+    sentence_pl = data.get("sentence_pl", "")
+    expected_en = data.get("expected_en", "")
+    user_translation = data.get("user_translation", "")
+    word = data.get("word", "")
+    
+    eval_res = gemini.evaluate_sentence_translation(sentence_pl, expected_en, user_translation, word)
+    
+    # Award XP if score >= 60
+    score = eval_res.get("score", 0)
+    xp_earned = 0
+    if score >= 60:
+        base_xp = 15 if score >= 85 else 10
+        new_xp, lvl, actual_xp, mult = db.add_xp(user["id"], base_xp)
+        xp_earned = actual_xp
+        with db.get_conn() as conn:
+            conn.execute(
+                "INSERT INTO sessions (user_id,exercise_type,words_practiced,correct,duration_sec,xp_earned) VALUES (?,?,?,?,?,?)",
+                (user["id"], "sentence_translation", 1, 1 if score >= 75 else 0, 0, actual_xp)
+            )
+        db._update_streak(user["id"])
+        
+    eval_res["xp_earned"] = xp_earned
+    return jsonify(eval_res)
+
 
 @app.route("/api/word/translate")
 def word_translate():

@@ -277,6 +277,19 @@ def update_status(word_id, new_status, user_id=1):
     # Degradacje: brak XP (to cofnięcie postępu)
     if xp_base > 0:
         new_xp, lvl, actual, mult = add_xp(user_id, xp_base)
+        # Zapisz sesję do tabeli sessions (bilans dzienny) i uaktualnij streak
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO sessions (user_id,exercise_type,words_practiced,correct,duration_sec,xp_earned) VALUES (?,?,?,?,?,?)",
+                (user_id, "word_promotion", 1, 1, 0, actual)
+            )
+        _update_streak(user_id)
+
+        # Uaktualnij postęp misji dziennych (np. "Przenieś 3 słowa do Poznałem")
+        quests_done = []
+        if new_status == "ZNAM":
+            quests_done = update_quest_progress(user_id, "promote_words", 1)
+
         # Milestone bonusy (jednorazowe) – rosnące z progiem
         learned_count = _get_learned_count(user_id)
         milestone = None
@@ -287,10 +300,16 @@ def update_status(word_id, new_status, user_id=1):
             (2700, 5000), (2850, 5250), (3000, 6000), (3300, 7000)
         ]:
             if learned_count == m:
-                add_xp(user_id, bonus)
-                milestone = {"count": m, "bonus": bonus}
+                m_xp, m_lvl, m_actual, m_mult = add_xp(user_id, bonus)
+                with get_conn() as conn:
+                    conn.execute(
+                        "INSERT INTO sessions (user_id,exercise_type,words_practiced,correct,duration_sec,xp_earned) VALUES (?,?,?,?,?,?)",
+                        (user_id, "milestone_bonus", 0, 0, 0, m_actual)
+                    )
+                new_xp = m_xp
+                milestone = {"count": m, "bonus": m_actual}
                 break
-        return {"xp": actual, "multiplier": mult, "total_xp": new_xp, "level": lvl, "milestone": milestone}
+        return {"xp": actual, "multiplier": mult, "total_xp": new_xp, "level": lvl, "milestone": milestone, "quests_done": quests_done}
     return {"xp": 0, "milestone": None}
 
 def delete_word(word_id, user_id=1):
@@ -841,7 +860,11 @@ def update_quest_progress(user_id, quest_type, amount=1):
             )
             if newly_done:
                 completed_now.append({"desc": row["description"], "xp": row["xp_reward"], "icon": row["icon"]})
-                add_xp(user_id, row["xp_reward"])
+                q_xp, q_lvl, q_actual, q_mult = add_xp(user_id, row["xp_reward"])
+                conn.execute(
+                    "INSERT INTO sessions (user_id,exercise_type,words_practiced,correct,duration_sec,xp_earned) VALUES (?,?,?,?,?,?)",
+                    (user_id, "quest_reward", 0, 0, 0, q_actual)
+                )
     return completed_now
 
 
