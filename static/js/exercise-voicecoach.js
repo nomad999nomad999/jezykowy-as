@@ -80,7 +80,10 @@ Object.assign(Exercise, {
         <!-- Target Word Badge -->
         <div style="background:var(--card-bg);border:1px solid var(--border-color);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
           <div style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Słowo kluczowe</div>
-          <div style="font-size:1.8rem;font-weight:800;color:var(--primary-color);line-height:1.2;">${w.word}</div>
+          <div style="font-size:1.8rem;font-weight:800;color:var(--primary-color);line-height:1.2;">
+            ${w.word}
+            ${w.frequency_rank && w.frequency_rank < 9999 ? `<span class="fc-rank" style="font-size:14px;margin-left:6px;vertical-align:middle">#${w.frequency_rank}</span>` : ''}
+          </div>
           <div style="font-size:1rem;color:var(--text-muted);margin-top:4px;">${w.translation || ''}</div>
         </div>
 

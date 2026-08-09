@@ -138,7 +138,10 @@ Object.assign(Exercise, {
         <div style="background:rgba(124, 58, 237, 0.08);border:1px solid rgba(124, 58, 237, 0.25);border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
           <div>
             <div style="font-size:10px;font-weight:800;color:#a78bfa;text-transform:uppercase;letter-spacing:1px">Słowo kluczowe</div>
-            <div style="font-size:16px;font-weight:900;color:#ffffff">${w.word}</div>
+            <div style="font-size:16px;font-weight:900;color:#ffffff">
+              ${w.word}
+              ${w.frequency_rank && w.frequency_rank < 9999 ? `<span class="fc-rank" style="font-size:11px;margin-left:4px">#${w.frequency_rank}</span>` : ''}
+            </div>
           </div>
           <div style="text-align:right">
             <div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:1px">Tłumaczenie</div>

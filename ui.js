@@ -392,6 +392,11 @@ const Classify = {
           </div>
           <div class="cc-translation-section">
             <div class="cc-translation">${w.translation}</div>
+            <div id="classifySentenceBox" style="margin:8px 0;text-align:center">
+              <button class="btn btn-outline" style="font-size:12px;padding:5px 12px;border-radius:18px;color:#a855f7;border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.08)" onclick="Classify.loadSentence('${w.word.replace(/'/g,"\\'")}','${(w.translation||'').replace(/'/g,"\\'")}')">
+                💡 Wygeneruj zdanie przykładowe (AI)
+              </button>
+            </div>
           </div>
           <div class="cc-btns single-row">
             <button class="btn-znam" onclick="Classify.classifyClick('${w.word.replace(/'/g,"\\'")}','${w.translation.replace(/'/g,"\\\\'")}','ZNAM')">✅ Znam</button>
@@ -401,6 +406,21 @@ const Classify = {
           <button class="btn-skip" style="margin-top:20px;width:100%" onclick="Classify.skipClick('${w.word.replace(/'/g,"\\'")}')">⏭️ Pomiń to słowo</button>
         </div>
       `;
+    }
+  },
+  async loadSentence(word, translation) {
+    const box = document.getElementById('classifySentenceBox');
+    if (!box) return;
+    box.innerHTML = '<div class="spinner spinner-small" style="margin:6px auto"></div><span style="font-size:11px;color:var(--text3)">Gemini generuje zdanie...</span>';
+    try {
+      const s = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(word)}&translation=${encodeURIComponent(translation||'')}`);
+      box.innerHTML = `
+        <div style="background:rgba(168,85,247,0.1);border-left:3px solid #a855f7;padding:8px 10px;border-radius:8px;margin-top:6px;font-size:12px;text-align:left">
+          <div style="color:var(--text1);font-weight:600">"${s.sentence}"</div>
+          <div style="color:var(--text3);font-size:11px;margin-top:2px">${s.sentence_pl}</div>
+        </div>`;
+    } catch(e) {
+      box.innerHTML = '<div style="color:var(--red);font-size:11px;margin-top:4px">Nie udało się pobrać zdania.</div>';
     }
   },
   classifyClick(word, translation, status) {
@@ -691,22 +711,39 @@ const Lists = {
 
 /* ── Word Modal ── */
 const WordModal = {
-  wordId: null, word: '',
+  wordId: null, word: '', translation: '',
   async open(id, word, translation, status) {
-    this.wordId = id; this.word = word;
+    this.wordId = id; this.word = word; this.translation = translation;
     document.getElementById('wmWord').textContent = word;
     document.getElementById('wmTranslation').textContent = translation || '(brak tłumaczenia)';
     const sentenceEl = document.getElementById('wmSentence');
-    if (translation) {
-      sentenceEl.textContent = 'Ładowanie…';
-    } else {
-      sentenceEl.textContent = '';
+    if (sentenceEl) {
+      if (translation) {
+        sentenceEl.innerHTML = `
+          <div style="margin-top:10px;text-align:center">
+            <button class="btn btn-outline" style="font-size:12px;padding:6px 14px;border-radius:18px;color:#a855f7;border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.08)" onclick="WordModal.loadSentence()">
+              💡 Wygeneruj zdanie przykładowe (AI)
+            </button>
+          </div>`;
+      } else {
+        sentenceEl.textContent = '';
+      }
     }
     document.getElementById('wordModal').classList.remove('hidden');
-    if (translation) {
-      const s = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(word)}&translation=${encodeURIComponent(translation)}`);
-      const el = document.getElementById('wmSentence');
-      if (el) el.innerHTML = `<em>${s.sentence}</em><br><small style="color:var(--text3)">${s.sentence_pl}</small>`;
+  },
+  async loadSentence() {
+    const sentenceEl = document.getElementById('wmSentence');
+    if (!sentenceEl || !this.word) return;
+    sentenceEl.innerHTML = '<div class="spinner spinner-small" style="margin:8px auto"></div><span style="font-size:12px;color:var(--text3)">Gemini generuje zdanie...</span>';
+    try {
+      const s = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(this.word)}&translation=${encodeURIComponent(this.translation||'')}`);
+      sentenceEl.innerHTML = `
+        <div style="background:rgba(168,85,247,0.1);border-left:3px solid #a855f7;padding:10px 12px;border-radius:8px;margin-top:10px;font-size:13px;text-align:left">
+          <div style="color:var(--text1);font-weight:600">"${s.sentence}"</div>
+          <div style="color:var(--text3);font-size:12px;margin-top:4px">${s.sentence_pl}</div>
+        </div>`;
+    } catch(e) {
+      sentenceEl.innerHTML = '<div style="color:var(--red);font-size:12px;margin-top:8px">Nie udało się pobrać zdania.</div>';
     }
   },
   close() { document.getElementById('wordModal').classList.add('hidden'); },

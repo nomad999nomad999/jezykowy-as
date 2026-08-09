@@ -94,8 +94,10 @@ Object.assign(Exercise, {
   renderMC() {
     if (this.idx >= this.data.length) { this.showResult(); return; }
     const w = this.data[this.idx];
+    const rankBadge = w.frequency_rank && w.frequency_rank < 9999
+      ? `<span class="fc-rank" style="font-size:12px;margin-left:6px;vertical-align:middle">#${w.frequency_rank}</span>` : '';
     document.getElementById('modalBody').innerHTML = `
-      <div class="mc-word">${w.word}</div>
+      <div class="mc-word">${w.word} ${rankBadge}</div>
       <span class="mc-speak" onclick="Speech.speak('${w.word.replace(/'/g,"\\'")}')">🔊 Wymów</span>
       <div class="mc-options">
         ${w.options.map((opt,i) => `<button class="mc-option" id="mco${i}" onclick="Exercise.mcAnswer('${opt.replace(/'/g,"\\'")}','${w.translation.replace(/'/g,"\\'")}',${w.id},${i})">${opt}</button>`).join('')}
@@ -128,8 +130,10 @@ Object.assign(Exercise, {
     if (this.idx >= this.total) { this.showResult(); return; }
     const w = this.data[this.idx];
     const hint = w.word[0] + '_'.repeat(w.word.length - 1);
+    const rankBadge = w.frequency_rank && w.frequency_rank < 9999
+      ? `<span class="fc-rank" style="font-size:11px;margin-left:6px">#${w.frequency_rank}</span>` : '';
     document.getElementById('modalBody').innerHTML = `
-      <p style="text-align:center;color:var(--text2);margin-bottom:8px;font-size:13px">${this.idx+1}/${this.total}</p>
+      <p style="text-align:center;color:var(--text2);margin-bottom:8px;font-size:13px">${this.idx+1}/${this.total} ${rankBadge}</p>
       <div class="spelling-translation" style="font-size:22px;font-weight:700;text-align:center;margin-bottom:12px;color:var(--text1)">${w.translation}</div>
       <div class="spelling-hint" style="text-align:center;color:var(--text3);font-size:16px;margin-bottom:24px;letter-spacing:4px;font-family:monospace">${hint} (${w.word.length} liter)</div>
       <div style="max-width:300px;margin:0 auto;display:flex;flex-direction:column;gap:12px">
@@ -255,10 +259,12 @@ Object.assign(Exercise, {
       return;
     }
     const w = this.data[this.idx];
+    const rankBadge = w.frequency_rank && w.frequency_rank < 9999
+      ? `<span class="fc-rank" style="font-size:14px;margin-left:6px;vertical-align:middle">#${w.frequency_rank}</span>` : '';
     document.getElementById('modalBody').innerHTML = `
       <div class="speed-timer" id="srTimer">${this.srTime}</div>
       <div class="speed-score">✅ ${this.score} poprawnych</div>
-      <div class="speed-word">${w.word}</div>
+      <div class="speed-word">${w.word} ${rankBadge}</div>
       <div class="mc-options">${w.options.map((opt,i) => `<button class="mc-option" onclick="Exercise.srAnswer('${opt.replace(/'/g,"\\'")}','${w.translation.replace(/'/g,"\\'")}',${i})">${opt}</button>`).join('')}</div>`;
   },
 
@@ -291,8 +297,10 @@ Object.assign(Exercise, {
     const w = this.data[this.idx];
     document.getElementById('modalBody').innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:auto"></div><p style="margin-top:12px;color:var(--text2)">Gemini generuje…</p></div>';
     const task = await API.get(`/api/gemini/context?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation||'')}`);
+    const rankBadge = w.frequency_rank && w.frequency_rank < 9999
+      ? `<span class="fc-rank" style="font-size:11px;margin-left:6px">#${w.frequency_rank}</span>` : '';
     document.getElementById('modalBody').innerHTML = `
-      <p style="text-align:center;color:var(--text2);margin-bottom:12px">${this.idx+1}/${this.total}</p>
+      <p style="text-align:center;color:var(--text2);margin-bottom:12px">${this.idx+1}/${this.total} ${rankBadge}</p>
       <div class="ctx-text">${(task.text||'').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</div>
       <p class="ctx-question">${task.question}</p>
       <div class="mc-options">${(task.options||[]).map((opt,i) => `<button class="mc-option" id="cto${i}" onclick="Exercise.ctxAnswer('${opt.replace(/'/g,"\\'")}','${(task.correct||'').replace(/'/g,"\\'")}',${w.id},${i})">${opt}</button>`).join('')}</div>
@@ -324,6 +332,8 @@ Object.assign(Exercise, {
     if (this.idx >= this.data.length) { this.showResult(); return; }
     const w = this.data[this.idx];
     setTimeout(() => Speech.speak(w.word), 300);
+    const rankBadge = w.frequency_rank && w.frequency_rank < 9999
+      ? `<span class="fc-rank" style="font-size:11px;margin-left:4px">#${w.frequency_rank}</span>` : '';
     document.getElementById('modalBody').innerHTML = `
       <p style="text-align:center;color:var(--text2);font-size:13px;margin-bottom:8px">${this.idx+1}/${this.data.length}</p>
       <div style="text-align:center;margin:20px 0">
@@ -331,7 +341,7 @@ Object.assign(Exercise, {
         <p style="color:var(--text2);font-size:15px">Usłyszysz słowo automatycznie</p>
         <button id="aqRepeat"
           style="margin-top:8px;background:var(--card);border:1px solid var(--border);color:var(--text1);padding:8px 20px;border-radius:20px;cursor:pointer;font-size:14px">
-          🔄 Powtórz: <strong>${w.word}</strong>
+          🔄 Powtórz: <strong>${w.word}</strong> ${rankBadge}
         </button>
       </div>
       <div class="mc-options" id="aqOptions"></div>

@@ -288,7 +288,10 @@ Object.assign(Exercise, {
           <div class="progress-bar-fill" style="width:${pct}%"></div>
         </div>
         
-        <div id="hfWord" style="font-size:36px;font-weight:800;color:var(--text1);margin-bottom:8px;word-break:break-word">${w.word}</div>
+        <div id="hfWord" style="font-size:36px;font-weight:800;color:var(--text1);margin-bottom:8px;word-break:break-word">
+          ${w.word}
+          ${w.frequency_rank && w.frequency_rank < 9999 ? `<span class="fc-rank" style="font-size:16px;margin-left:8px;vertical-align:middle">#${w.frequency_rank}</span>` : ''}
+        </div>
         <div id="hfTranslation" style="font-size:22px;color:var(--green);font-weight:600;margin-bottom:24px">${w.translation}</div>
         
         <div id="hfSentence" style="min-height:60px;max-width:400px;margin:20px 0;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:12px;border:1px solid var(--border);width:100%">

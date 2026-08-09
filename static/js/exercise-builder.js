@@ -27,7 +27,10 @@ Object.assign(Exercise, {
     document.getElementById('modalBody').innerHTML = `
       <div style="padding:16px 12px;max-width:420px;margin:0 auto">
         <div style="text-align:center;margin-bottom:14px">
-          <div style="font-size:28px;font-weight:900;color:var(--text1);letter-spacing:1px">${w.word}</div>
+          <div style="font-size:28px;font-weight:900;color:var(--text1);letter-spacing:1px">
+            ${w.word}
+            ${w.frequency_rank && w.frequency_rank < 9999 ? `<span class="fc-rank" style="font-size:13px;margin-left:6px;vertical-align:middle">#${w.frequency_rank}</span>` : ''}
+          </div>
           <div style="font-size:13px;color:var(--text3);margin-top:4px">${w.translation}</div>
           <div style="margin-top:8px">
             <button style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px" onclick="Speech.speak('${w.word.replace(/'/g,"\\'")}')">🔊 wymowa</button>

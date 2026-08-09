@@ -83,7 +83,8 @@ Object.assign(Exercise, {
   _dialogueRenderChat() {
     const wordsHtml = this._dialogueTargetWords.map(w => {
       const used = this._dialogueHistory.some(m => m.role === 'user' && m.text.toLowerCase().includes(w.word.toLowerCase()));
-      return `<span class="dialogue-word-pill ${used ? 'dialogue-word-used' : ''}">${w.word} <small>(${w.translation})</small></span>`;
+      const rankHtml = w.frequency_rank && w.frequency_rank < 9999 ? `<small style="opacity:0.85;margin-left:2px;font-weight:700">#${w.frequency_rank}</small>` : '';
+      return `<span class="dialogue-word-pill ${used ? 'dialogue-word-used' : ''}">${w.word} ${rankHtml} <small>(${w.translation})</small></span>`;
     }).join('');
 
     const chatHtml = this._dialogueHistory.map(m => {

@@ -125,8 +125,9 @@ Object.assign(Exercise, {
       <div class="tr-exercise-card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <span style="font-size:12px;color:var(--text3);font-weight:600">Zdanie ${this.trCurrentSentenceIdx + 1} z ${sentences.length}</span>
-          <span class="badge" style="background:rgba(99,102,241,0.15);color:var(--accent);border:1px solid rgba(99,102,241,0.3)">
-            Słowo klucz: <strong>${targetWord}</strong> (${this.trTask.translation || ''})
+          <span class="badge" style="background:rgba(99,102,241,0.15);color:var(--accent);border:1px solid rgba(99,102,241,0.3);display:inline-flex;align-items:center;gap:6px">
+            <span>Słowo klucz: <strong>${targetWord}</strong> (${this.trTask.translation || ''})</span>
+            ${this.trTask.frequency_rank && this.trTask.frequency_rank < 9999 ? `<span style="background:#6366f1;color:#ffffff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:800;display:inline-block">#${this.trTask.frequency_rank}</span>` : ''}
           </span>
         </div>
 

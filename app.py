@@ -334,11 +334,16 @@ def gemini_sentence_translation():
             w_obj = random.choice(pool)
             word = w_obj["word"]
             translation = w_obj["translation"]
+            rank = w_obj.get("frequency_rank", 9999)
         else:
             word = "achieve"
             translation = "osiągnąć"
+            rank = 9999
+    else:
+        rank = request.args.get("rank") or json_data.get("rank") or 9999
             
     res = gemini.generate_sentence_translation_task(word, translation, difficulty, num_sentences)
+    res["frequency_rank"] = int(rank) if rank else 9999
     return jsonify(res)
 
 @app.route("/api/gemini/evaluate_sentence_translation", methods=["POST"])

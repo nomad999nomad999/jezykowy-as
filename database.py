@@ -497,11 +497,20 @@ def get_words_for_review(statuses=("NIE_ZNAM","TROCHE"), limit=20, user_id=1, up
     3. Priorytetyzuje słowa najmniej niedawno ćwiczone (last_reviewed), zachowując silny komponent losowy.
     4. Opcjonalnie aktualizuje last_reviewed = CURRENT_TIMESTAMP dla wybranych słów.
     """
+    _cols = """
+        w.id, w.word,
+        COALESCE(NULLIF(w.translation,''), c.translation, '') AS translation,
+        w.status, w.source, w.user_id,
+        w.added_date, w.last_reviewed, w.review_count, w.correct_count, w.learned_at,
+        COALESCE(c.frequency_rank, w.frequency_rank, 9999) AS frequency_rank
+    """
     ph = ",".join("?" * len(statuses))
     with get_conn() as conn:
         rows = conn.execute(
-            f"""SELECT * FROM words
-                WHERE status IN ({ph}) AND translation!='' AND user_id=?
+            f"""SELECT {_cols}
+                FROM words w
+                LEFT JOIN coca_words c ON c.word = w.word
+                WHERE w.status IN ({ph}) AND COALESCE(NULLIF(w.translation,''), c.translation, '') != '' AND w.user_id=?
                 ORDER BY RANDOM()""",
             (*statuses, user_id)).fetchall()
         pool = [dict(r) for r in rows]
@@ -509,9 +518,11 @@ def get_words_for_review(statuses=("NIE_ZNAM","TROCHE"), limit=20, user_id=1, up
         if len(pool) < limit + 10:
             needed = (limit + 10) - len(pool)
             extra = conn.execute(
-                """SELECT * FROM words
-                   WHERE status = 'ZNAM' AND translation!='' AND user_id=?
-                   ORDER BY RANDOM() LIMIT ?""",
+                f"""SELECT {_cols}
+                    FROM words w
+                    LEFT JOIN coca_words c ON c.word = w.word
+                    WHERE w.status = 'ZNAM' AND COALESCE(NULLIF(w.translation,''), c.translation, '') != '' AND w.user_id=?
+                    ORDER BY RANDOM() LIMIT ?""",
                 (user_id, needed)).fetchall()
             pool.extend([dict(r) for r in extra])
 

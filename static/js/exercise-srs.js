@@ -39,9 +39,11 @@ Object.assign(Exercise, {
     const lHard = this._srsNextLabel(w.repetitions, w.ef, 3);
     const lGood = this._srsNextLabel(w.repetitions, w.ef, 4);
     const lEasy = this._srsNextLabel(w.repetitions, w.ef, 5);
+    const rankBadge = w.frequency_rank && w.frequency_rank < 9999
+      ? `<span class="fc-rank" style="font-size:10px;margin-left:4px">#${w.frequency_rank}</span>` : '';
     const repsBadge = w.repetitions === 0
-      ? `<span style="background:rgba(239,68,68,0.15);color:var(--red);padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">NOWE</span>`
-      : `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">×${w.repetitions}</span>`;
+      ? `<span style="background:rgba(239,68,68,0.15);color:var(--red);padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">NOWE ${rankBadge}</span>`
+      : `<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700">×${w.repetitions} ${rankBadge}</span>`;
 
     // Auto-speak słowo przy każdym nowym wyświetleniu karty
     setTimeout(() => Speech.speak(w.word), 300);
