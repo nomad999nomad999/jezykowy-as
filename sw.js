@@ -1,4 +1,4 @@
-const CACHE = 'eng-2026-07-28-v17';
+const CACHE = 'eng-2026-08-10-v18';
 const ASSETS = [
   './',
   'index.html',
@@ -17,7 +17,19 @@ const ASSETS = [
   'app.js',
   'manifest.json',
   'icon.png',
-  'dexie.min.js'
+  'dexie.min.js',
+  'js/exercise-core.js',
+  'js/exercise-basic.js',
+  'js/exercise-supquiz.js',
+  'js/exercise-srs.js',
+  'js/exercise-builder.js',
+  'js/exercise-fact.js',
+  'js/exercise-dialogue.js',
+  'js/exercise-handsfree.js',
+  'js/exercise-rpg.js',
+  'js/exercise-voicecoach.js',
+  'js/exercise-translate.js',
+  'js/home.js'
 ];
 
 self.addEventListener('install', e => {
