@@ -39,32 +39,152 @@ const API = window.API;
 
 /* ── Speech ── */
 const Speech = {
+  activeUtterance: null,
+  voices: [],
+
+  init() {
+    if (!window.speechSynthesis) return;
+    this.loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
+    }
+  },
+
+  loadVoices() {
+    if (!window.speechSynthesis) return;
+    try {
+      this.voices = window.speechSynthesis.getVoices() || [];
+    } catch(e) {}
+  },
+
+  getVoice(langCode) {
+    if (!this.voices || this.voices.length === 0) {
+      this.loadVoices();
+    }
+    const prefix = langCode.split('-')[0].toLowerCase();
+    const exact = this.voices.find(v => v.lang && v.lang.toLowerCase().replace('_', '-').startsWith(langCode.toLowerCase()));
+    if (exact) return exact;
+    const partial = this.voices.find(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+    if (partial) return partial;
+    return null;
+  },
+
   speak(word, cancelExisting = true, customRate = 0.85) {
     return new Promise((resolve) => {
       if (!window.speechSynthesis) { resolve(); return; }
-      if (cancelExisting) window.speechSynthesis.cancel();
+      
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        if (cancelExisting && window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+        }
+      } catch(e) {}
+
       const u = new SpeechSynthesisUtterance(word);
-      u.lang = 'en-US'; u.rate = customRate || 0.85;
-      u.onend = () => resolve();
-      u.onerror = () => resolve();
-      window.speechSynthesis.speak(u);
-      setTimeout(resolve, 8000);
+      u.lang = 'en-US';
+      u.rate = customRate || 0.85;
+
+      const voice = this.getVoice('en-US');
+      if (voice) u.voice = voice;
+
+      this.activeUtterance = u;
+
+      let resolved = false;
+      const finish = () => {
+        if (!resolved) {
+          resolved = true;
+          this.activeUtterance = null;
+          resolve();
+        }
+      };
+
+      u.onend = finish;
+      u.onerror = (err) => {
+        console.warn('SpeechSynthesis error:', err);
+        finish();
+      };
+
+      const delay = (cancelExisting && window.speechSynthesis.speaking) ? 60 : 10;
+      setTimeout(() => {
+        try {
+          window.speechSynthesis.speak(u);
+        } catch(e) {
+          finish();
+        }
+      }, delay);
+
+      setTimeout(finish, 8000);
     });
   },
+
   speakPl(text, cancelExisting = true) {
     return new Promise((resolve) => {
       if (!window.speechSynthesis) { resolve(); return; }
-      if (cancelExisting) window.speechSynthesis.cancel();
+      
+      try {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+        if (cancelExisting && window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+        }
+      } catch(e) {}
+
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'pl-PL'; u.rate = 0.95;
-      u.onend = () => resolve();
-      u.onerror = () => resolve();
-      window.speechSynthesis.speak(u);
-      // Zabezpieczenie przed zawieszeniem syntezatora
-      setTimeout(resolve, 10000);
+      u.lang = 'pl-PL';
+      u.rate = 0.95;
+
+      const voice = this.getVoice('pl-PL');
+      if (voice) u.voice = voice;
+
+      this.activeUtterance = u;
+
+      let resolved = false;
+      const finish = () => {
+        if (!resolved) {
+          resolved = true;
+          this.activeUtterance = null;
+          resolve();
+        }
+      };
+
+      u.onend = finish;
+      u.onerror = (err) => {
+        console.warn('SpeechSynthesis error:', err);
+        finish();
+      };
+
+      const delay = (cancelExisting && window.speechSynthesis.speaking) ? 60 : 10;
+      setTimeout(() => {
+        try {
+          window.speechSynthesis.speak(u);
+        } catch(e) {
+          finish();
+        }
+      }, delay);
+
+      setTimeout(finish, 10000);
     });
   }
 };
+
+if (typeof window !== 'undefined') {
+  Speech.init();
+  const unlockAudio = () => {
+    if (window.speechSynthesis) {
+      try {
+        window.speechSynthesis.resume();
+        Speech.loadVoices();
+      } catch(e) {}
+    }
+    document.removeEventListener('touchstart', unlockAudio);
+    document.removeEventListener('click', unlockAudio);
+  };
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+  document.addEventListener('click', unlockAudio, { once: true });
+}
 
 /* ── XP popup ── */
 const XP = {
