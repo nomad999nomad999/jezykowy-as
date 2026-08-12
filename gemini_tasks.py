@@ -274,67 +274,110 @@ _DAILY_FACT_CATEGORIES = {
 }
 
 
-def generate_daily_fact(category_en: str, category_pl: str, user_words: list) -> dict:
+def generate_daily_fact(category_en: str, category_pl: str, user_words: list, seen_topics: str = "") -> dict:
     """Generuje ciekawostkę naukową z wyróżnionymi słowami użytkownika, polskim tłumaczeniem akapitu, tłumaczeniem pytań + quiz T/F."""
     words_str = ", ".join(f'"{w["word"]}" ({w.get("translation","?")})' for w in user_words[:15])
-    prompt = f"""You are creating educational English content for a Polish speaker learning English.
+    
+    seen_instruction = ""
+    if seen_topics and seen_topics.strip():
+        seen_instruction = f"\nDO NOT repeat or generate facts about these previously covered topics: {seen_topics}. Choose a completely DIFFERENT, novel topic within '{category_en}'!"
 
-Category: {category_en} ({category_pl})
-User's vocabulary to practice (pick 3-5 and use them naturally): {words_str}
+    prompt = f"""You are an expert science communicator and English teacher.
 
-Return ONLY valid JSON (no markdown):
+STRICT TOPIC REQUIREMENT:
+The educational fact MUST be 100% strictly about the category: "{category_en}" ({category_pl}).
+Do NOT change the main subject to dinosaurs, animal camouflage, space, or unrelated topics unless "{category_en}" specifically demands it!
+For example:
+- If Category is "Primitive Humans & Archaeology", write ONLY about early human species, stone tools, fire, Neanderthals, cave paintings, or prehistoric life.
+- If Category is "Polish Business & Economy", write ONLY about business, startups, economy, or companies.
+- If Category is "Evolutionary Biology", write ONLY about biological evolution, natural selection, genetics, or speciation.
+
+User's vocabulary list to practice: {words_str}
+Instructions: Pick 2-4 target words from the list above that naturally fit into this topic about "{category_en}". If a word does not fit, skip it and pick words that DO fit. Mark every used target word with **double asterisks** like **word**.
+{seen_instruction}
+
+Return ONLY valid JSON (no markdown wrapper, no extra text):
 {{
-  "title": "Specific topic title (4-6 English words)",
-  "fact": "3-4 sentences (80-130 words). B1-B2 English level. Use 3-5 user words naturally. Mark each used target word with **double asterisks** like **word**.",
+  "title": "Specific topic title strictly within {category_en} (4-6 English words)",
+  "fact": "3-4 informative, fascinating sentences (80-120 words) strictly about {category_en}. Use 2-4 target words naturally, marked with **word**.",
   "fact_pl": "Kompletne, dokładne i naturalne tłumaczenie całego powyższego akapitu na język polski.",
   "used_words": [
     {{"word": "used_word", "translation": "polskie tłumaczenie", "context": "short phrase using it"}}
   ],
   "questions": [
-    {{"statement": "One-sentence T/F statement in English about the fact.", "statement_pl": "Dokładne tłumaczenie zdania pytania na język polski.", "answer": true, "explanation": "Krótkie wyjaśnienie po polsku."}},
-    {{"statement": "Another statement in English.", "statement_pl": "Tłumaczenie po polsku.", "answer": false, "explanation": "Wyjaśnienie."}},
-    {{"statement": "Third statement in English.", "statement_pl": "Tłumaczenie po polsku.", "answer": true, "explanation": "Wyjaśnienie."}}
+    {{"statement": "T/F statement 1 in English based on the fact.", "statement_pl": "Tłumaczenie oświadczenia 1 na język polski.", "answer": true, "explanation": "Krótkie wyjaśnienie po polsku."}},
+    {{"statement": "T/F statement 2 in English based on the fact.", "statement_pl": "Tłumaczenie oświadczenia 2 na język polski.", "answer": false, "explanation": "Krótkie wyjaśnienie po polsku."}},
+    {{"statement": "T/F statement 3 in English based on the fact.", "statement_pl": "Tłumaczenie oświadczenia 3 na język polski.", "answer": true, "explanation": "Krótkie wyjaśnienie po polsku."}}
   ]
 }}
 
 Rules:
-- Include "fact_pl" which is a full, accurate Polish translation of the entire fact text so the learner can understand difficult words.
-- Each item in "questions" MUST contain "statement" (English) AND "statement_pl" (full Polish translation of the statement).
-- Exactly 3 questions, mix of true/false (not all same answer)
-- Questions answerable ONLY from the fact text
-- Fact must be genuinely interesting and accurate
-- Explanations in Polish"""
+- "fact_pl" MUST be included directly in the JSON output.
+- Every question item in "questions" MUST contain both "statement" (EN) and "statement_pl" (PL).
+- Exactly 3 questions with a mix of True and False answers.
+- Explanations in Polish."""
 
     raw = _ask(prompt)
-    try:
-        s = raw.find("{"); e = raw.rfind("}")
-        if s != -1 and e != -1:
-            raw = raw[s:e+1]
-        data = json.loads(raw)
-        if not data.get("fact") or len(data.get("questions", [])) < 3:
-            raise ValueError("Bad structure")
-        if not data.get("fact_pl"):
-            clean_fact = data["fact"].replace("**", "")
-            data["fact_pl"] = _ask(f"Przetłumacz ten tekst na język polski:\n{clean_fact}") or f"Tłumaczenie: {clean_fact}"
-        # Make sure every question has statement_pl
-        for q in data.get("questions", []):
+    parsed = _parse_json(raw)
+    if parsed and isinstance(parsed, dict) and "fact" in parsed and len(parsed.get("questions", [])) >= 3:
+        if not parsed.get("fact_pl"):
+            parsed["fact_pl"] = parsed["fact"].replace("**", "")
+        for q in parsed.get("questions", []):
             if not q.get("statement_pl"):
-                q["statement_pl"] = _ask(f"Przetłumacz to zdanie na język polski:\n{q.get('statement', '')}") or q.get("statement", "")
-        return data
-    except Exception as ex:
-        print(f"generate_daily_fact fallback: {ex}")
-        w = user_words[0] if user_words else {"word": "develop", "translation": "rozwijać"}
-        return {
-            "title": f"{category_en}: Key Facts",
-            "fact": f"Scientists study how living things **{w['word']}** in different environments. Many organisms adapt to survive in extreme conditions. Research shows that even small environmental changes can have significant effects. Understanding these processes is essential for protecting our planet.",
-            "fact_pl": f"Naukowcy badają, jak żywe organizmy rozwijają się w różnych środowiskach. Wiele organizmów przystosowuje się, aby przetrwać w ekstremalnych warunkach. Badania pokazują, że nawet małe zmiany środowiskowe mogą mieć znaczący wpływ. Zrozumienie tych procesów jest kluczowe dla ochrony naszej planety.",
-            "used_words": [{"word": w["word"], "translation": w.get("translation","?"), "context": f"how things {w['word']}"}],
+                q["statement_pl"] = q.get("statement", "")
+        return parsed
+
+    # Dynamic fallback based on category if AI is temporarily unavailable or response was malformed
+    w1 = user_words[0] if len(user_words) > 0 else {"word": "discover", "translation": "odkryć"}
+    w2 = user_words[1] if len(user_words) > 1 else {"word": "develop", "translation": "rozwijać"}
+
+    fallback_topics = {
+        "Primitive Humans & Archaeology": {
+            "title": f"Early Human Innovations: {w1['word'].title()} and Survival",
+            "fact": f"Early humans learned to **{w1['word']}** essential methods for making stone axes and controlling fire. Over thousands of years, prehistoric communities began to **{w2['word']}** unique cultural traditions and hunting strategies. Archaeological discoveries show that our ancestors adapted remarkably to changing ice age environments.",
+            "fact_pl": f"Wcześni ludzie nauczyli się odkrywać/stosować kluczowe metody wytwarzania kamiennych siekier i kontrolowania ognia. Przez tysiące lat prehistoryczne społeczności zaczęły rozwijać unikalne tradycje kulturowe i strategie łowieckie. Odkrycia archeologiczne pokazują, że nasi przodkowie niezwykle dobrze przystosowali się do zmieniających się środowisk epoki lodowcowej.",
+            "used_words": [
+                {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"learned to {w1['word']}"},
+                {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"began to {w2['word']}"}
+            ],
             "questions": [
-                {"statement": "Small environmental changes can have significant effects.", "statement_pl": "Niewielkie zmiany środowiskowe mogą mieć znaczące skutki.", "answer": True, "explanation": "Tekst wprost to stwierdza."},
-                {"statement": "Scientists fully understand all adaptation processes.", "statement_pl": "Naukowcy w pełni rozumieją wszystkie procesy adaptacji.", "answer": False, "explanation": "Tekst mówi że 'badają', nie że w pełni rozumieją."},
-                {"statement": "Understanding natural processes helps protect our planet.", "statement_pl": "Zrozumienie procesów naturalnych pomaga chronić naszą planetę.", "answer": True, "explanation": "Tekst kończy się tym stwierdzeniem."}
+                {"statement": "Early humans controlled fire and crafted stone axes.", "statement_pl": "Wcześni ludzie kontrolowali ogień i wytwarzali kamienne siekiery.", "answer": True, "explanation": "Tekst wskazuje na kontrolowanie ognia i siekiery kamienne."},
+                {"statement": "Prehistoric communities never adapted to ice age conditions.", "statement_pl": "Prehistoryczne społeczności nigdy nie przystosowały się do warunków epoki lodowcowej.", "answer": False, "explanation": "Tekst wyraźnie mówi, że nasi przodkowie niezwykle dobrze się przystosowali."},
+                {"statement": "Archaeology helps us understand ancient human survival.", "statement_pl": "Archeologia pomaga nam zrozumieć przetrwanie dawnych ludzi.", "answer": True, "explanation": "Odkrycia archeologiczne pokazują rozwój dawnych społeczności."}
+            ]
+        },
+        "Polish Business & Economy": {
+            "title": f"Modern Polish Economy: Innovation and Industry",
+            "fact": f"Poland has built a dynamic economy where tech startups **{w1['word']}** new international markets. Companies continuously strive to **{w2['word']}** advanced digital solutions and export high-quality goods across Europe. Economic reports highlight strong growth in technology and manufacturing sectors.",
+            "fact_pl": f"Polska zbudowała dynamiczną gospodarkę, w której firmy technologiczne zdobywają nowe rynki międzynarodowe. Przedsiębiorstwa stale rozwijają zaawansowane rozwiązania cyfrowe i eksportują towary wysokiej jakości w całej Europie. Raporty gospodarcze podkreślają silny wzrost w sektorze technologicznym i produkcyjnym.",
+            "used_words": [
+                {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"startups {w1['word']}"},
+                {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"strive to {w2['word']}"}
+            ],
+            "questions": [
+                {"statement": "Poland exports high-quality goods across European markets.", "statement_pl": "Polska eksportuje towary wysokiej jakości na rynki europejskie.", "answer": True, "explanation": "Tekst wprost to potwierdza."},
+                {"statement": "Technology sectors in Poland have stopped growing.", "statement_pl": "Sektor technologiczny w Polsce przestał się rozwijać.", "answer": False, "explanation": "Raporty gospodarcze podkreślają silny wzrost w technologii."},
+                {"statement": "Polish startups focus on digital innovation.", "statement_pl": "Polskie startupy skupiają się na innowacjach cyfrowych.", "answer": True, "explanation": "Przedsiębiorstwa tworzą zaawansowane rozwiązania cyfrowe."}
             ]
         }
+    }
+
+    default_fb = fallback_topics.get(category_en, {
+        "title": f"{category_en}: Scientific Insights",
+        "fact": f"Researchers in {category_en.lower()} strive to **{w1['word']}** fundamental principles governing natural systems. New findings allow scientists to **{w2['word']}** better models for future discovery. Understanding these mechanisms helps advance modern science.",
+        "fact_pl": f"Badacze w dziedzinie {category_pl.lower()} dążą do zrozumienia podstawowych zasad rządzących systemami naturalnymi. Nowe odkrycia pozwalają naukowcom rozwijać lepsze modele dla przyszłych odkryć.",
+        "used_words": [
+            {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"strive to {w1['word']}"},
+            {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"allow to {w2['word']}"}
+        ],
+        "questions": [
+            {"statement": f"Scientific research advances our understanding of {category_en.lower()}.", "statement_pl": f"Badania naukowe rozwijają naszą wiedzę w dziedzinie {category_pl.lower()}.", "answer": True, "explanation": "Tekst wyjaśnia powiązanie między badaniami a wiedzą."},
+            {"statement": "Scientists have stopped making new discoveries in this field.", "statement_pl": "Naukowcy przestali dokonywać nowych odkryć w tej dziedzinie.", "answer": False, "explanation": "Tekst mówi o nowych odkryciach i ulepszaniu modeli."},
+            {"statement": "New models help researchers understand complex mechanisms.", "statement_pl": "Nowe modele pomagają badaczom zrozumieć złożone mechanizmy.", "answer": True, "explanation": "Lepsze modele służą do przyszłych odkryć."}
+        ]
+    })
+
+    return default_fb
 
 
 def generate_rpg_step(theme: str, stage: int, previous_story: str, target_word: str, target_translation: str) -> dict:

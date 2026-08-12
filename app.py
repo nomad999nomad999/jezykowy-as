@@ -418,6 +418,7 @@ def daily_fact():
     user, err, code = _require_user()
     if err: return err, code
     category = request.args.get("category", "biology")
+    seen = request.args.get("seen", "")
     cats = {
         "primitive_human": ("Primitive Humans & Archaeology", "Człowiek pierwotny i Archeologia"),
         "polish_business": ("Polish Business & Economy", "Polski biznes i Gospodarka"),
@@ -459,7 +460,7 @@ def daily_fact():
             pool.extend([dict(r) for r in extra])
 
     random.shuffle(pool)
-    return jsonify(gemini.generate_daily_fact(cat_en, cat_pl, pool))
+    return jsonify(gemini.generate_daily_fact(cat_en, cat_pl, pool, seen_topics=seen))
 
 @app.route("/api/exercise/dialogue/init")
 def dialogue_init():

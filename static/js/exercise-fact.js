@@ -2,6 +2,7 @@ Object.assign(Exercise, {
 
   async startDailyFact() {
     this.score = 0; this.xpEarned = 0; this._dfFactNum = 0; this._dfAllResults = [];
+    this._dfSeenTitles = [];
     this._dfFact = null; // wymuś nowe generowanie przy każdym starcie
     this.total = 9;
     this.startTime = Date.now();
@@ -46,6 +47,7 @@ Object.assign(Exercise, {
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     this._dfCategory = category;
     this._dfFactNum = 0;
+    this._dfSeenTitles = [];
     this._dfAllResults = [];
     this.score = 0; this.xpEarned = 0;
     await this._dfLoadFact();
@@ -58,12 +60,17 @@ Object.assign(Exercise, {
         <div class="spinner" style="margin:auto"></div>
         <p style="color:var(--text3);margin-top:16px;font-size:14px">🧠 Gemini generuje ciekawostkę…</p>
       </div>`;
-    const res = await API.get(`/api/exercise/daily_fact?category=${this._dfCategory}&_t=${Date.now()}`);
+    const seenParam = encodeURIComponent((this._dfSeenTitles || []).join('; '));
+    const res = await API.get(`/api/exercise/daily_fact?category=${this._dfCategory}&seen=${seenParam}&_t=${Date.now()}`);
     if (!res || res.error) {
       document.getElementById('modalBody').innerHTML = `<p style="text-align:center;padding:40px;color:var(--red)">Błąd: ${res?.error || 'Brak odpowiedzi'}</p>`;
       return;
     }
     this._dfFact = res;
+    if (res.title) {
+      if (!this._dfSeenTitles) this._dfSeenTitles = [];
+      this._dfSeenTitles.push(res.title);
+    }
     this._dfQuestionNum = 0;
     this._dfCorrectThisFact = 0;
     this._dfIsSpeaking = false;
