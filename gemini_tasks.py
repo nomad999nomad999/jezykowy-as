@@ -19,12 +19,13 @@ _CONTEXTS = [
 def _ask(prompt: str, max_retries: int = 2) -> str:
     """Wysyła prompt do Gemini z obsługą rate limit (429) i przełączaniem modeli."""
     import time
-    models = ["gemini-2.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash"]
+    models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"]
     for model_name in models:
         for attempt in range(max_retries):
             try:
                 resp = _client.models.generate_content(model=model_name, contents=prompt)
-                return resp.text.strip()
+                if resp and resp.text:
+                    return resp.text.strip()
             except Exception as e:
                 err_str = str(e)
                 is_rate_limit = "429" in err_str or "quota" in err_str.lower() or "rate" in err_str.lower()
@@ -32,60 +33,97 @@ def _ask(prompt: str, max_retries: int = 2) -> str:
                 if is_rate_limit:
                     break
                 if attempt < max_retries - 1:
-                    time.sleep(1.5)  # krótka przerwa przed następną próbą
-        # krótka pauza między modelami
-        time.sleep(0.5)
-    return ""  # pusty string = fallback w wywołującej funkcji
+                    time.sleep(1.0)
+        time.sleep(0.3)
+    return ""
+
+
+def _parse_json(raw: str):
+    if not raw:
+        return None
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if len(lines) >= 2:
+            cleaned = "\n".join(lines[1:-1]) if lines[-1].startswith("```") else "\n".join(lines[1:])
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1:
+        cleaned = cleaned[start:end+1]
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        return None
+
+
+def _smart_fallback_sentence(word: str, translation: str) -> dict:
+    w_lower = word.lower().strip()
+    clean_tr = translation.split(";")[0].split(",")[0].strip() if translation else word
+
+    # Reflexive pronouns (ourselves, myself, etc.)
+    if w_lower in ["ourselves", "myself", "yourself", "yourselves", "himself", "herself", "itself", "themselves"]:
+        pronoun_map = {
+            "ourselves": ("We decided to complete this project by ourselves.", "Postanowiliśmy dokończyć ten projekt sami."),
+            "myself": ("I will handle this situation by myself.", "Poradzę sobie z tą sytuacją sam."),
+            "yourself": ("Take care of yourself during the trip.", "Dbaj o siebie podczas podróży."),
+            "yourselves": ("Please make yourselves comfortable.", "Rozgośćcie się, proszę."),
+            "himself": ("He fixed the car by himself.", "Sam naprawił samochód."),
+            "herself": ("She prepared the entire meal by herself.", "Sama przygotowała cały posiłek."),
+            "itself": ("The system updates itself automatically.", "System aktualizuje się automatycznie."),
+            "themselves": ("They solved the difficult problem by themselves.", "Samodzielnie rozwiązali ten trudny problem.")
+        }
+        sent, sent_pl = pronoun_map[w_lower]
+        return {
+            "sentence": sent,
+            "sentence_pl": sent_pl,
+            "tip": f"{word} = {clean_tr}"
+        }
+
+    # Universal fallbacks for any part of speech
+    fallbacks = [
+        (f"The word '{word}' means '{clean_tr}' in English.", f"Słowo '{word}' oznacza '{clean_tr}' po angielsku."),
+        (f"We can use the word '{word}' in everyday conversation.", f"Możemy używać słowa '{word}' w codziennych rozmowach."),
+        (f"Do you know how to use '{word}' in a sentence?", f"Czy wiesz, jak użyć słowa '{word}' w zdaniu?"),
+        (f"He asked about the meaning of '{word}'.", f"Zapytał o znaczenie słowa '{word}'."),
+        (f"She explained what '{word}' means with a good example.", f"Wyjaśniła, co oznacza '{word}' na dobrym przykładzie.")
+    ]
+    sent, sent_pl = random.choice(fallbacks)
+    return {
+        "sentence": sent,
+        "sentence_pl": sent_pl,
+        "tip": f"{word} = {clean_tr}"
+    }
 
 
 def generate_example_sentence(word: str, translation: str) -> dict:
     """Generuje przykładowe zdanie – za każdym razem inny kontekst."""
     ctx = random.choice(_CONTEXTS)
     style = random.choice([
-        "Use a humorous tone.",
-        "Use a serious, formal tone.",
-        "Make it a question.",
+        "Use a natural conversational tone.",
+        "Make it an engaging everyday scenario.",
         "Use past tense.",
-        "Use future tense.",
-        "Make it about a specific person named Alex or Maria.",
-        "Make it a short dialogue fragment.",
-        "Use a surprising or unexpected scenario.",
+        "Use present continuous tense.",
+        "Make it a question asking for someone's opinion.",
+        "Include a specific workplace, family, or travel scenario.",
+        "Use a friendly dialogue tone.",
     ])
     prompt = f"""You are an English teacher for a Polish speaker learning English.
-Word: "{word}" (Polish: "{translation}")
+Word: "{word}" (Polish translation: "{translation}")
 Context: {ctx}. {style}
 
 Generate a JSON response with:
-1. "sentence": A natural example sentence using the word (max 12 words). MUST use the word "{word}" exactly. Do NOT use the phrase "is very important".
-2. "sentence_pl": Polish translation of the sentence
-3. "tip": A short memory tip in Polish (max 10 words)
+1. "sentence": An engaging, natural example sentence (8-14 words) using the word "{word}" naturally and grammatically. MUST use the word "{word}" exactly (or its natural form). Do NOT use generic template sentences like "I want to practice...".
+2. "sentence_pl": Natural Polish translation of the sentence.
+3. "tip": A short pronunciation or memory tip in Polish (max 10 words).
 
 Respond ONLY with valid JSON, no markdown, no extra text.
-Example: {{"sentence": "She had no doubt about her decision.", "sentence_pl": "Nie miała wątpliwości co do swojej decyzji.", "tip": "Doubt = wątpliwość, jak 'dubbing' – coś niepewnego"}}"""
+Example: {{"sentence": "She decided to investigate the mysterious noise in the attic.", "sentence_pl": "Postanowiła zbadać tajemniczy hałas na poddaszu.", "tip": "Investigate = zbadać / dociekać"}}"""
 
     raw = _ask(prompt)
-    try:
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start != -1 and end != -1:
-            raw = raw[start:end+1]
-        return json.loads(raw)
-    except Exception:
-        # Lepsze fallbacki - różnorodne zdania z użyciem słowa
-        fallbacks = [
-            (f"She didn't know how to {word} the problem.", f"Nie wiedziała, jak {translation} ten problem."),
-            (f"He tried to {word} it carefully.", f"Starał się ostrożnie {translation}."),
-            (f"They decided to {word} the situation.", f"Postanowili {translation} sytuację."),
-            (f"The teacher explained {word} with examples.", f"Nauczyciel wyjaśnił '{translation}' na przykładach."),
-            (f"Can you {word} this for me?", f"Czy możesz mi to {translation}?"),
-        ]
-        import random as _r
-        sent, sent_pl = _r.choice(fallbacks)
-        return {
-            "sentence": sent,
-            "sentence_pl": sent_pl,
-            "tip": f"{word} = {translation}"
-        }
+    parsed = _parse_json(raw)
+    if parsed and isinstance(parsed, dict) and "sentence" in parsed and "sentence_pl" in parsed:
+        return parsed
+    return _smart_fallback_sentence(word, translation)
 
 
 def generate_fill_blank(word: str, translation: str) -> dict:
@@ -105,20 +143,18 @@ Respond ONLY with valid JSON, no markdown.
 Example: {{"sentence": "I have no _____ about his honesty.", "answer": "doubt", "hint": "d____", "sentence_pl": "Nie mam żadnych wątpliwości co do jego uczciwości."}}"""
 
     raw = _ask(prompt)
-    try:
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start != -1 and end != -1:
-            raw = raw[start:end+1]
-        return json.loads(raw)
-    except Exception:
-        hint = word[0] + "_" * (len(word) - 1) if word else "?"
-        return {
-            "sentence": f"She needs to _____ this situation carefully.",
-            "answer": word,
-            "hint": hint,
-            "sentence_pl": f"Musi ostrożnie {translation} tę sytuację."
-        }
+    parsed = _parse_json(raw)
+    if parsed and isinstance(parsed, dict) and "sentence" in parsed:
+        return parsed
+    
+    clean_tr = translation.split(";")[0].split(",")[0].strip() if translation else word
+    hint = word[0] + "_" * (len(word) - 1) if word else "?"
+    return {
+        "sentence": f"Do you know the meaning of the word '_____ '?",
+        "answer": word,
+        "hint": hint,
+        "sentence_pl": f"Czy znasz znaczenie słowa '{clean_tr}'?"
+    }
 
 
 def generate_context_challenge(word: str, translation: str, distractors: list) -> dict:
@@ -151,35 +187,26 @@ Respond ONLY with valid JSON, no markdown.
 Example: {{"text": "She had no **doubt** that she made the right choice. The decision felt natural.", "question": "Co oznacza pogrubione słowo?", "correct": "wątpliwość", "options": ["wątpliwość", "radość", "pewność", "strach"]}}"""
 
     raw = _ask(prompt)
-    try:
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start != -1 and end != -1:
-            raw = raw[start:end+1]
-        data = json.loads(raw)
-        # Ensure exactly 4 options with correct included
-        if "options" not in data or len(data["options"]) < 2:
+    parsed = _parse_json(raw)
+    if parsed and isinstance(parsed, dict) and "text" in parsed:
+        if "options" not in parsed or len(parsed["options"]) < 2:
             opts = [translation] + (distractors[:3] if distractors else ["radość", "strach", "pewność"])
             random.shuffle(opts)
-            data["options"] = opts[:4]
-        if translation not in data["options"]:
-            data["options"][0] = translation
-            random.shuffle(data["options"])
-        return data
-    except Exception:
-        opts = [translation] + (distractors[:3] if distractors else ["radość", "strach", "pewność"])
-        random.shuffle(opts)
-        ctx_sentences = [
-            f"Alex used the word **{word}** when talking to his colleague.",
-            f"Maria read about **{word}** in a book about language learning.",
-            f"The teacher explained what **{word}** means with an example.",
-        ]
-        return {
-            "text": random.choice(ctx_sentences),
-            "question": "Co oznacza pogrubione słowo?",
-            "correct": translation,
-            "options": opts[:4]
-        }
+            parsed["options"] = opts[:4]
+        if translation not in parsed["options"]:
+            parsed["options"][0] = translation
+            random.shuffle(parsed["options"])
+        return parsed
+
+    clean_tr = translation.split(";")[0].split(",")[0].strip() if translation else word
+    opts = [clean_tr] + (distractors[:3] if distractors else ["radość", "strach", "pewność"])
+    random.shuffle(opts)
+    return {
+        "text": f"Alex asked about the word **{word}** in class. The teacher explained its meaning clearly.",
+        "question": "Co oznacza pogrubione słowo?",
+        "correct": clean_tr,
+        "options": opts[:4]
+    }
 
 
 def generate_sentence_builder(word: str, translation: str) -> dict:
@@ -207,45 +234,29 @@ Respond ONLY with valid JSON, no markdown.
 Example: {{"sentence": "She had no doubt about her decision.", "translation_pl": "Nie miała wątpliwości co do swojej decyzji."}}"""
 
     raw = _ask(prompt)
-    try:
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start != -1 and end != -1:
-            raw = raw[start:end+1]
-        data = json.loads(raw)
-        sentence = data.get("sentence", "")
-        translation_pl = data.get("translation_pl", "")
-        if not sentence or word.lower() not in sentence.lower():
-            raise ValueError("Word not in sentence")
-        # Scramble the words
+    parsed = _parse_json(raw)
+    if parsed and isinstance(parsed, dict) and "sentence" in parsed and word.lower() in parsed["sentence"].lower():
+        sentence = parsed["sentence"]
+        translation_pl = parsed.get("translation_pl", "")
         words = sentence.split()
         scrambled = words[:]
         random.shuffle(scrambled)
-        # Make sure scrambled is not identical to original (at least swap if same)
         attempts = 0
         while scrambled == words and attempts < 5:
             random.shuffle(scrambled)
             attempts += 1
         return {"sentence": sentence, "words_scrambled": scrambled, "translation_pl": translation_pl}
-    except Exception as e:
-        print(f"generate_sentence_builder fallback for '{word}': {e}")
-        # Fallback: simple template sentence
-        fallbacks = [
-            f"She could not {word} the situation at all.",
-            f"He decided to {word} everything carefully.",
-            f"They always {word} this problem together.",
-            f"The teacher asked us to {word} the exercise.",
-            f"I need to {word} this before tomorrow.",
-        ]
-        sentence = random.choice(fallbacks)
-        words = sentence.split()
-        scrambled = words[:]
-        random.shuffle(scrambled)
-        return {
-            "sentence": sentence,
-            "words_scrambled": scrambled,
-            "translation_pl": f"(tłumaczenie dla: {translation})"
-        }
+
+    fallback_obj = _smart_fallback_sentence(word, translation)
+    sentence = fallback_obj["sentence"]
+    words = sentence.split()
+    scrambled = words[:]
+    random.shuffle(scrambled)
+    return {
+        "sentence": sentence,
+        "words_scrambled": scrambled,
+        "translation_pl": fallback_obj["sentence_pl"]
+    }
 
 
 
@@ -629,29 +640,25 @@ Return ONLY valid JSON (no markdown):
 }}
 """
     raw = _ask(prompt)
-    try:
-        s = raw.find("{"); e = raw.rfind("}")
-        if s != -1 and e != -1:
-            raw = raw[s:e+1]
-        res = json.loads(raw)
-        if "sentences" in res and len(res["sentences"]) > 0:
-            return res
-    except Exception as ex:
-        print(f"generate_sentence_translation_task fallback: {ex}")
+    res = _parse_json(raw)
+    if res and isinstance(res, dict) and "sentences" in res and len(res["sentences"]) > 0:
+        return res
 
-    # Fallback if Gemini is offline
+    # Fallback if Gemini is offline or failed
+    fb1 = _smart_fallback_sentence(word, translation)
     fallback_sentences = [
         {
-            "sentence_pl": f"Jak najszybciej muszę {translation if translation else word} ten problem.",
-            "expected_en": f"I need to {word} this problem as soon as possible.",
-            "alternatives_en": [f"I must {word} this issue quickly."]
+            "sentence_pl": fb1["sentence_pl"],
+            "expected_en": fb1["sentence"],
+            "alternatives_en": [f"I am learning how to use the word '{word}'."]
         }
     ]
     if count >= 2:
+        clean_tr = translation.split(";")[0].split(",")[0].strip() if translation else word
         fallback_sentences.append({
-            "sentence_pl": f"Czy wiesz jak {translation if translation else word} w tej sytuacji?",
-            "expected_en": f"Do you know how to {word} in this situation?",
-            "alternatives_en": [f"Do you know how to {word} here?"]
+            "sentence_pl": f"Czy znasz dokładne znaczenie słowa '{clean_tr}'?",
+            "expected_en": f"Do you know the exact meaning of the word '{word}'?",
+            "alternatives_en": [f"Do you know what the word '{word}' means?"]
         })
     return {
         "word": word,

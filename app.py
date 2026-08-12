@@ -295,9 +295,12 @@ def speed_round():
     return jsonify(result)
 
 # ─── Gemini ────────────────────────────────────────────────────────────────────
-@app.route("/api/gemini/sentence")
+@app.route("/api/gemini/sentence", methods=["GET", "POST"])
 def gemini_sentence():
-    return jsonify(gemini.generate_example_sentence(request.args.get("word",""), request.args.get("translation","")))
+    json_data = request.get_json(silent=True) or {}
+    word = request.args.get("word") or json_data.get("word") or ""
+    translation = request.args.get("translation") or json_data.get("translation") or ""
+    return jsonify(gemini.generate_example_sentence(word, translation))
 
 @app.route("/api/gemini/fill_blank")
 def gemini_fill():

@@ -55,16 +55,21 @@ Object.assign(Exercise, {
       </div>
     `;
 
-    // Try fetching sentence from Gemini, fallback if offline
+    // Try fetching unique contextual sentence from Gemini
     try {
-      const res = await API.post('/api/gemini/sentence', { word: this.vcCurrentWord.word });
+      const w = this.vcCurrentWord;
+      const res = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation || '')}`);
       if (res && res.sentence) {
         this.vcSentence = res.sentence;
+        this.vcSentencePl = res.sentence_pl || "";
       } else {
-        this.vcSentence = `I want to practice the word ${this.vcCurrentWord.word} today.`;
+        this.vcSentence = `The word '${w.word}' is very useful in everyday English conversations.`;
+        this.vcSentencePl = `Słowo '${w.word}' jest bardzo przydatne w codziennych rozmowach po angielsku.`;
       }
     } catch(e) {
-      this.vcSentence = `I want to practice using ${this.vcCurrentWord.word} in a sentence.`;
+      const w = this.vcCurrentWord;
+      this.vcSentence = `We are learning how to pronounce '${w.word}' correctly today.`;
+      this.vcSentencePl = `Uczymy się dzisiaj, jak poprawnie wymawiać słowo '${w.word}'.`;
     }
 
     this.vcRenderCard();
@@ -80,16 +85,20 @@ Object.assign(Exercise, {
         <!-- Target Word Badge -->
         <div style="background:var(--card-bg);border:1px solid var(--border-color);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
           <div style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Słowo kluczowe</div>
-          <div style="font-size:1.8rem;font-weight:800;color:var(--primary-color);line-height:1.2;">${w.word}</div>
+          <div style="font-size:1.8rem;font-weight:800;color:var(--primary-color);line-height:1.2;">
+            ${w.word}
+            ${w.frequency_rank && w.frequency_rank < 9999 ? `<span class="fc-rank" style="font-size:14px;margin-left:6px;vertical-align:middle">#${w.frequency_rank}</span>` : ''}
+          </div>
           <div style="font-size:1rem;color:var(--text-muted);margin-top:4px;">${w.translation || ''}</div>
         </div>
 
         <!-- Target Sentence Card -->
         <div style="background:linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(168,85,247,0.08) 100%);border:1.5px solid rgba(99,102,241,0.2);border-radius:20px;padding:20px;margin-bottom:20px;position:relative;">
           <div style="font-size:0.85rem;color:var(--primary-color);font-weight:700;margin-bottom:8px;">🎯 Przeczytaj to zdanie na głos:</div>
-          <div id="vcTargetSentence" style="font-size:1.25rem;font-weight:600;color:var(--text-main);line-height:1.5;margin-bottom:14px;">
+          <div id="vcTargetSentence" style="font-size:1.25rem;font-weight:600;color:var(--text-main);line-height:1.5;margin-bottom:6px;">
             "${this.vcSentence}"
           </div>
+          ${this.vcSentencePl ? `<div style="font-size:0.95rem;color:var(--text-muted);margin-bottom:14px;font-style:italic;">(${this.vcSentencePl})</div>` : '<div style="margin-bottom:14px;"></div>'}
           <button class="btn btn-secondary" style="border-radius:24px;padding:8px 18px;font-weight:600;display:inline-flex;align-items:center;gap:6px;" onclick="Speech.speak('${this.vcSentence.replace(/'/g, "\\'")}', 'en-US', 0.82)">
             🔊 Odsłuchaj wzorzec wymowy
           </button>
