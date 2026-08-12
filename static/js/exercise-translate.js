@@ -159,6 +159,8 @@ Object.assign(Exercise, {
     this.renderTrQuestion();
   },
 
+  trAccumulatedTranscript: '',
+
   renderTrInputArea() {
     const container = document.getElementById('trInputContainer');
     if (!container) return;
@@ -169,10 +171,12 @@ Object.assign(Exercise, {
           <button id="trMicBtn" class="tr-mic-btn" onclick="Exercise.toggleTrVoiceRecording()">
             🎙️
           </button>
-          <p id="trMicStatus" style="font-size:13px;color:var(--text2);margin-top:10px">Naciśnij mikrofon i wypowiedz tłumaczenie po angielsku</p>
+          <p id="trMicStatus" style="font-size:13px;color:var(--text2);margin-top:10px">
+            Naciśnij mikrofon i wypowiedz tłumaczenie po angielsku (możesz robić pauzy)
+          </p>
           <div class="tr-transcript-box" id="trTranscript">Wypowiedziane słowa pojawią się tutaj...</div>
-          <button class="btn btn-primary" id="trSubmitVoiceBtn" style="margin-top:12px;width:100%;display:none" onclick="Exercise.submitTrTranslation()">
-            Sprawdź odpowiedź głosową ➔
+          <button class="btn btn-primary" id="trSubmitVoiceBtn" style="margin-top:12px;width:100%;display:none;padding:14px;font-size:16px;font-weight:700" onclick="Exercise.submitTrTranslation()">
+            Zakończ i sprawdź odpowiedź ➔
           </button>
         </div>
       `;
@@ -207,61 +211,84 @@ Object.assign(Exercise, {
       return;
     }
 
-    try {
-      this.trRecognition = new SpeechRecognition();
-      this.trRecognition.lang = 'en-US';
-      this.trRecognition.continuous = true;
-      this.trRecognition.interimResults = true;
+    this.trIsRecording = true;
+    this.trAccumulatedTranscript = '';
 
-      const micBtn = document.getElementById('trMicBtn');
-      const micStatus = document.getElementById('trMicStatus');
-      const transcriptBox = document.getElementById('trTranscript');
-      const submitBtn = document.getElementById('trSubmitVoiceBtn');
+    const micBtn = document.getElementById('trMicBtn');
+    const micStatus = document.getElementById('trMicStatus');
+    const transcriptBox = document.getElementById('trTranscript');
+    const submitBtn = document.getElementById('trSubmitVoiceBtn');
 
-      if (micBtn) micBtn.classList.add('recording');
-      if (micStatus) micStatus.textContent = '🔴 Słucham... Mów teraz po angielsku!';
+    if (micBtn) micBtn.classList.add('recording');
+    if (micStatus) micStatus.textContent = '🔴 Słucham... Mów powoli (możesz robić pauzy). Gdy skończysz, kliknij przycisk sprawdzenia!';
 
-      this.trRecognition.onresult = (event) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          finalTranscript += event.results[i][0].transcript;
-        }
-        if (transcriptBox) {
-          transcriptBox.textContent = finalTranscript;
-          transcriptBox.style.color = 'var(--text1)';
-        }
-        if (submitBtn && finalTranscript.trim().length > 0) {
-          submitBtn.style.display = 'block';
-        }
-      };
+    const initRecognition = () => {
+      if (!this.trIsRecording) return;
 
-      this.trRecognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        if (micStatus) micStatus.textContent = '⚠️ Błąd mikrofonu: ' + event.error;
-      };
+      try {
+        this.trRecognition = new SpeechRecognition();
+        this.trRecognition.lang = 'en-US';
+        this.trRecognition.continuous = true;
+        this.trRecognition.interimResults = true;
 
-      this.trRecognition.onend = () => {
-        this.trIsRecording = false;
-        if (micBtn) micBtn.classList.remove('recording');
-      };
+        this.trRecognition.onresult = (event) => {
+          let currentSessionText = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            currentSessionText += event.results[i][0].transcript;
+          }
+          let fullText = (this.trAccumulatedTranscript + ' ' + currentSessionText).trim();
+          if (transcriptBox) {
+            transcriptBox.textContent = fullText;
+            transcriptBox.style.color = 'var(--text1)';
+          }
+          if (submitBtn && fullText.length > 0) {
+            submitBtn.style.display = 'block';
+          }
+        };
 
-      this.trRecognition.start();
-      this.trIsRecording = true;
-    } catch(e) {
-      alert('Błąd uruchamiania mikrofonu: ' + e.message);
-    }
+        this.trRecognition.onerror = (event) => {
+          console.warn('Speech recognition error:', event.error);
+          if (event.error === 'not-allowed') {
+            alert('Dostęp do mikrofonu został zablokowany w przeglądarce.');
+            this.stopTrVoiceRecording();
+          }
+        };
+
+        this.trRecognition.onend = () => {
+          // Jeśli użytkownik NIE wyłączył mikrofonu przyciskiem, kontynuuj nagrywanie (auto-restart)!
+          if (this.trIsRecording) {
+            if (transcriptBox && transcriptBox.textContent && !transcriptBox.textContent.includes('Wypowiedziane słowa pojawią się tutaj...')) {
+              this.trAccumulatedTranscript = transcriptBox.textContent.trim();
+            }
+            try {
+              this.trRecognition.start();
+            } catch(e) {
+              setTimeout(() => {
+                if (this.trIsRecording) initRecognition();
+              }, 250);
+            }
+          }
+        };
+
+        this.trRecognition.start();
+      } catch(e) {
+        console.error('Error starting speech recognition:', e);
+      }
+    };
+
+    initRecognition();
   },
 
   stopTrVoiceRecording() {
+    this.trIsRecording = false;
     if (this.trRecognition) {
-      this.trRecognition.stop();
+      try { this.trRecognition.stop(); } catch(e){}
       this.trRecognition = null;
     }
-    this.trIsRecording = false;
     const micBtn = document.getElementById('trMicBtn');
     const micStatus = document.getElementById('trMicStatus');
     if (micBtn) micBtn.classList.remove('recording');
-    if (micStatus) micStatus.textContent = 'Zakończono nagrywanie. Kliknij przycisk poniżej, aby sprawdzić.';
+    if (micStatus) micStatus.textContent = 'Nagrywanie wstrzymane. Sprawdź tekst i kliknij przycisk poniżej.';
   },
 
   async submitTrTranslation() {

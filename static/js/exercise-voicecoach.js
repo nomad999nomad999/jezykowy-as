@@ -162,6 +162,8 @@ Object.assign(Exercise, {
     }
   },
 
+  vcAccumulatedTranscript: "",
+
   vcStartRecording() {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
@@ -169,56 +171,72 @@ Object.assign(Exercise, {
       return;
     }
 
-    try {
-      this.vcRecognition = new SpeechRec();
-      this.vcRecognition.lang = 'en-US';
-      this.vcRecognition.interimResults = true;
-      this.vcRecognition.maxAlternatives = 1;
+    this.vcIsRecording = true;
+    this.vcAccumulatedTranscript = "";
+    this.vcSpokenText = "";
 
-      this.vcIsRecording = true;
-      const btn = document.getElementById('vcRecordBtn');
-      const btnText = document.getElementById('vcRecordBtnText');
-      const wave = document.getElementById('vcPulseWave');
-      const statusText = document.getElementById('vcStatusText');
-      const liveBox = document.getElementById('vcLiveTranscriptBox');
-      const liveTrans = document.getElementById('vcLiveTranscript');
+    const btn = document.getElementById('vcRecordBtn');
+    const btnText = document.getElementById('vcRecordBtnText');
+    const wave = document.getElementById('vcPulseWave');
+    const statusText = document.getElementById('vcStatusText');
+    const liveBox = document.getElementById('vcLiveTranscriptBox');
+    const liveTrans = document.getElementById('vcLiveTranscript');
 
-      if (btn) btn.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-      if (btnText) btnText.textContent = '⏹️ Zakończ nagrywanie';
-      if (wave) wave.classList.remove('hidden');
-      if (statusText) statusText.textContent = 'Słucham... Mów teraz po angielsku!';
-      if (liveBox) liveBox.classList.remove('hidden');
+    if (btn) btn.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+    if (btnText) btnText.textContent = '⏹️ Zakończ i analizuj';
+    if (wave) wave.classList.remove('hidden');
+    if (statusText) statusText.textContent = '🔴 Słucham... Mów powoli (możesz robić pauzy). Gdy skończysz, kliknij przycisk powyżej!';
+    if (liveBox) liveBox.classList.remove('hidden');
 
-      this.vcRecognition.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
-        }
-        this.vcSpokenText = transcript;
-        if (liveTrans) liveTrans.textContent = transcript || '...';
-      };
+    const initVcRecognition = () => {
+      if (!this.vcIsRecording) return;
 
-      this.vcRecognition.onerror = (event) => {
-        console.warn("Speech recognition error:", event.error);
-        if (event.error === 'no-speech') {
-          if (statusText) statusText.textContent = 'Nie wykryto mowy. Spróbuj mówić głośniej!';
-        } else if (event.error === 'not-allowed') {
-          alert("Dostęp do mikrofonu został zablokowany w przeglądarce. Zezwól na mikrofon w ustawieniach strony.");
-          this.vcStopRecording();
-        }
-      };
+      try {
+        this.vcRecognition = new SpeechRec();
+        this.vcRecognition.lang = 'en-US';
+        this.vcRecognition.continuous = true;
+        this.vcRecognition.interimResults = true;
 
-      this.vcRecognition.onend = () => {
-        if (this.vcIsRecording) {
-          this.vcStopRecording();
-        }
-      };
+        this.vcRecognition.onresult = (event) => {
+          let currentSessionText = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            currentSessionText += event.results[i][0].transcript;
+          }
+          let fullText = (this.vcAccumulatedTranscript + ' ' + currentSessionText).trim();
+          this.vcSpokenText = fullText;
+          if (liveTrans) liveTrans.textContent = fullText || '...';
+        };
 
-      this.vcRecognition.start();
-    } catch(e) {
-      console.error("Failed to start speech recognition:", e);
-      this.vcIsRecording = false;
-    }
+        this.vcRecognition.onerror = (event) => {
+          console.warn("Speech recognition error:", event.error);
+          if (event.error === 'not-allowed') {
+            alert("Dostęp do mikrofonu został zablokowany w przeglądarce.");
+            this.vcStopRecording();
+          }
+        };
+
+        this.vcRecognition.onend = () => {
+          if (this.vcIsRecording) {
+            if (liveTrans && liveTrans.textContent && liveTrans.textContent !== '...') {
+              this.vcAccumulatedTranscript = liveTrans.textContent.trim();
+            }
+            try {
+              this.vcRecognition.start();
+            } catch(e) {
+              setTimeout(() => {
+                if (this.vcIsRecording) initVcRecognition();
+              }, 250);
+            }
+          }
+        };
+
+        this.vcRecognition.start();
+      } catch(e) {
+        console.error("Failed to start speech recognition:", e);
+      }
+    };
+
+    initVcRecognition();
   },
 
   vcStopRecording() {
