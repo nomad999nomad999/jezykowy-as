@@ -198,42 +198,55 @@ Example: {"sentence": "I have no _____ about his honesty.", "answer": "doubt", "
   throw lastError || new Error("All models failed");
 }
 
-async function fetchDirectGeminiDailyFact(category, userWords, apiKey) {
+async function fetchDirectGeminiDailyFact(category, userWords, apiKey, seenTopics) {
   const cats = {
     biology: ["Biology", "Biologia"],
     evolutionary_biology: ["Evolutionary Biology", "Biologia ewolucyjna"],
-    nature: ["Nature", "Przyroda"],
-    physics: ["Physics", "Fizyka"],
-    technology: ["Technology", "Technika"]
+    nature: ["Nature & Wildlife", "Przyroda i Świat zwierząt"],
+    physics: ["Physics & Quantum Realm", "Fizyka i Kosmos"],
+    technology: ["Technology & Innovation", "Technika i AI"],
+    primitive_human: ["Primitive Humans & Archaeology", "Człowiek pierwotny i Archeologia"],
+    polish_business: ["Polish Business & Economy", "Polski biznes i Gospodarka"],
+    history: ["World History & Civilizations", "Historia świata i Cywilizacje"],
+    psychology: ["Psychology & Mind", "Psychologia i Mózg"],
+    culture: ["Culture & Pop Culture", "Popkultura i Sztuka"]
   };
   const [catEn, catPl] = cats[category] || ["Biology", "Biologia"];
   const wordsStr = userWords.slice(0, 15).map(w => `"${w.word}" (${w.translation || '?'})`).join(", ");
+  const seenInstruction = seenTopics && seenTopics.trim()
+    ? `\nDO NOT generate a fact about these already-seen topics: ${seenTopics}. Choose a COMPLETELY DIFFERENT topic within "${catEn}".`
+    : '';
 
   const prompt = `You are creating educational English content for a Polish speaker learning English.
 
-Category: ${catEn} (${catPl})
-User's vocabulary to practice (pick 3-5 and use them naturally): ${wordsStr}
+STRICT CATEGORY REQUIREMENT: The fact MUST be 100% about "${catEn}" (${catPl}). Do NOT drift to other subjects.${seenInstruction}
 
-CRITICAL RULE: You MUST ONLY select target words to practice from the "User's vocabulary to practice" list above. Do NOT highlight (**word**) or include in "used_words" any words that are not present in the provided list. If the list is empty, then you can use common words, but if it has words, use ONLY those words.
+User's vocabulary to practice (pick 2-4 and use them naturally): ${wordsStr}
+
+CRITICAL RULES:
+1. Write a genuinely interesting, accurate fact STRICTLY about "${catEn}".
+2. Use ONLY words from the vocabulary list above (mark with **double asterisks**). If none fit naturally, skip them.
+3. Include a Polish translation of the full fact in "fact_pl".
+4. Include Polish translations in "statement_pl" for each question.
 
 Return ONLY valid JSON (no markdown):
 {
-  "title": "Specific topic title (4-6 English words)",
-  "fact": "3-4 sentences (80-130 words). B1-B2 English level. Use 3-5 target words from the list naturally. Mark each used target word with **double asterisks** like **word**.",
+  "title": "Specific topic title strictly about ${catEn} (4-6 English words)",
+  "fact": "3-4 sentences (80-130 words). B1-B2 English level. Mark each used target word with **double asterisks**.",
+  "fact_pl": "Complete Polish translation of the fact paragraph.",
   "used_words": [
     {"word": "used_word", "translation": "polskie tlumaczenie", "context": "short phrase using it"}
   ],
   "questions": [
-    {"statement": "One-sentence T/F statement about the fact only.", "answer": true, "explanation": "Krotkie wyjasnienie po polsku."},
-    {"statement": "Another statement.", "answer": false, "explanation": "Wyjasnienie."},
-    {"statement": "Third statement.", "answer": true, "explanation": "Wyjasnienie."}
+    {"statement": "T/F statement 1 based only on the fact.", "statement_pl": "Polish translation of statement 1.", "answer": true, "explanation": "Krotkie wyjasnienie po polsku."},
+    {"statement": "T/F statement 2.", "statement_pl": "Polish translation of statement 2.", "answer": false, "explanation": "Wyjasnienie."},
+    {"statement": "T/F statement 3.", "statement_pl": "Polish translation of statement 3.", "answer": true, "explanation": "Wyjasnienie."}
   ]
 }
 
 Rules:
-- Exactly 3 questions, mix of true/false (not all same answer)
+- Exactly 3 questions, mix of true/false
 - Questions answerable ONLY from the fact text
-- Fact must be genuinely interesting and accurate
 - Explanations in Polish`;
 
   const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
@@ -1947,7 +1960,8 @@ const DB = {
                 pool = allCoca.map(c => ({ word: c.word, translation: c.translation }));
               }
               const shuffledWords = [...pool].sort(() => Math.random() - 0.5);
-              const data = await fetchDirectGeminiDailyFact(category, shuffledWords, localApiKey);
+              const seenTitles = params.get("seen") || "";
+              const data = await fetchDirectGeminiDailyFact(category, shuffledWords, localApiKey, seenTitles);
               if (data && data.fact) return data;
             } catch (e) {
               console.warn("Direct Gemini daily_fact failed, trying server/offline:", e.message);
@@ -1959,7 +1973,7 @@ const DB = {
         try {
           const controller = new AbortController();
           const tid = setTimeout(() => controller.abort(), 35000);
-          const activeUid = (typeof Session !== 'undefined' && Session.get() ? Session.get().id : null) || userId || 1;
+          const activeUid = (typeof Session !== 'undefined' && Session.userId) ? Session.userId : (parseInt(localStorage.getItem('uid')) || userId || 1);
           const resp = await fetch(url, { headers: { 'X-User-Id': activeUid.toString() }, signal: controller.signal });
           clearTimeout(tid);
           if (resp.ok) { const d = await resp.json(); if (d && d.fact) return d; }
