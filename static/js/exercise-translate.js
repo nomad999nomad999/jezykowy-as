@@ -10,6 +10,7 @@ Object.assign(Exercise, {
 
   async startSentenceTranslation() {
     this.trCurrentSentenceIdx = 0;
+    this.trSeenWords = [];
     this.score = 0;
     this.total = 0;
     this.startTime = Date.now();
@@ -99,9 +100,14 @@ Object.assign(Exercise, {
       </div>`;
 
     try {
-      this.trTask = await API.get(`/api/gemini/sentence_translation?difficulty=${this.trDifficulty}&num_sentences=${this.trNumSentences}`);
+      const seenParam = encodeURIComponent((this.trSeenWords || []).join(','));
+      this.trTask = await API.get(`/api/gemini/sentence_translation?difficulty=${this.trDifficulty}&num_sentences=${this.trNumSentences}&seen_words=${seenParam}&_t=${Date.now()}`);
+      if (this.trTask && this.trTask.word) {
+        if (!this.trSeenWords) this.trSeenWords = [];
+        this.trSeenWords.push(this.trTask.word);
+      }
       this.trCurrentSentenceIdx = 0;
-      this.total = (this.trTask.sentences || []).length;
+      this.total += (this.trTask.sentences || []).length;
       this.renderTrQuestion();
     } catch(e) {
       document.getElementById('modalBody').innerHTML = `
@@ -370,6 +376,12 @@ Object.assign(Exercise, {
 
   nextTrSentence() {
     this.trCurrentSentenceIdx++;
-    this.renderTrQuestion();
+    const sentences = (this.trTask && this.trTask.sentences) || [];
+    if (this.trCurrentSentenceIdx >= sentences.length) {
+      // Auto-load next word and unique sentence!
+      this.loadTrTask();
+    } else {
+      this.renderTrQuestion();
+    }
   }
 });

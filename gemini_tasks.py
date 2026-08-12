@@ -661,12 +661,13 @@ def generate_sentence_translation_task(word: str, translation: str, difficulty: 
     prompt = f"""You are creating an English-learning translation exercise for a Polish speaker.
 Target English Word: "{word}" (Polish meaning: "{translation}")
 Difficulty: {difficulty} ({diff_desc})
-Number of sentences to generate: {count} (generate exactly {count} sentence object(s) in "sentences" array)
+Number of sentences to generate: {count}
 
-Requirements:
-1. Generate natural Polish sentence(s) ("sentence_pl") that test how to translate into English using the target word "{word}" (or its natural English variation).
-2. Provide the ideal English model translation ("expected_en").
-3. Provide 2-3 acceptable alternative English translations ("alternatives_en").
+CRITICAL RULES:
+1. Generate natural, engaging Polish sentence(s) ("sentence_pl") that test how to translate into English using the target word "{word}" (or its natural English variation).
+2. DO NOT use generic or repetitive templates like "I want to practice...", "Do you know the meaning...", "I am learning...". Create a realistic, practical real-life sentence (8-14 words).
+3. Provide the ideal English model translation ("expected_en").
+4. Provide 2-3 acceptable alternative English translations ("alternatives_en").
 
 Return ONLY valid JSON (no markdown):
 {{
@@ -687,7 +688,7 @@ Return ONLY valid JSON (no markdown):
     if res and isinstance(res, dict) and "sentences" in res and len(res["sentences"]) > 0:
         return res
 
-    # Fallback if Gemini is offline or failed
+    # Dynamic fallback if Gemini is offline or failed
     fb1 = _smart_fallback_sentence(word, translation)
     fallback_sentences = [
         {

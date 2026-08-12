@@ -330,10 +330,28 @@ def gemini_sentence_translation():
     translation = request.args.get("translation") or json_data.get("translation") or ""
     difficulty = request.args.get("difficulty") or json_data.get("difficulty") or "medium"
     num_sentences = int(request.args.get("num_sentences") or json_data.get("num_sentences") or 1)
+    seen_words = request.args.get("seen_words") or json_data.get("seen_words") or ""
     
+    seen_list = [w.strip().lower() for w in seen_words.split(",") if w.strip()]
+
     if not word:
-        pool = db.get_words_for_review(("NIE_ZNAM","TROCHE"), 15, user["id"])
-        if pool:
+        pool = db.get_words_for_review(("NIE_ZNAM","TROCHE"), 40, user["id"])
+        fresh_pool = [w for w in pool if w["word"].lower() not in seen_list]
+        if not fresh_pool and pool:
+            with db.get_conn() as conn:
+                extra = conn.execute(
+                    "SELECT * FROM words WHERE user_id = ? AND translation != '' ORDER BY RANDOM() LIMIT 40",
+                    (user["id"],)
+                ).fetchall()
+                extra_pool = [dict(r) for r in extra]
+                fresh_pool = [w for w in extra_pool if w["word"].lower() not in seen_list]
+
+        if fresh_pool:
+            w_obj = random.choice(fresh_pool)
+            word = w_obj["word"]
+            translation = w_obj["translation"]
+            rank = w_obj.get("frequency_rank", 9999)
+        elif pool:
             w_obj = random.choice(pool)
             word = w_obj["word"]
             translation = w_obj["translation"]
