@@ -1,4 +1,4 @@
-const CACHE = 'eng-2026-08-10-v23';
+const CACHE = 'eng-2026-08-10-v24';
 const ASSETS = [
   './',
   'index.html',

@@ -1958,86 +1958,68 @@ const DB = {
         // Try server first
         try {
           const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 12000);
-          const resp = await fetch(url, { headers: { 'X-User-Id': userId.toString() }, signal: controller.signal });
+          const tid = setTimeout(() => controller.abort(), 35000);
+          const activeUid = (typeof Session !== 'undefined' && Session.get() ? Session.get().id : null) || userId || 1;
+          const resp = await fetch(url, { headers: { 'X-User-Id': activeUid.toString() }, signal: controller.signal });
           clearTimeout(tid);
           if (resp.ok) { const d = await resp.json(); if (d && d.fact) return d; }
         } catch(e) { console.log("daily_fact server unavailable, using offline:", e.message); }
 
-        // Offline fallbacks (one per category)
+        // Offline fallbacks with seen_topics exclusion
+        const seenParam = (params.get("seen") || "").toLowerCase();
         const OFFLINE = {
-          biology: {
-            title: "How Cells Communicate",
-            fact: "Cells in the human body constantly **communicate** with each other using chemical signals. This **process** allows organs to **coordinate** their functions effectively. Without this communication, the body would not be able to **maintain** a stable internal environment. Scientists call this ability to stay balanced **homeostasis**.",
-            used_words: [
-              {word:"communicate",translation:"komunikować się",context:"cells communicate using signals"},
-              {word:"process",translation:"proces",context:"this process allows organs"},
-              {word:"maintain",translation:"utrzymywać",context:"ability to maintain balance"}
-            ],
-            questions: [
-              {statement:"Cells communicate using chemical signals.",answer:true,explanation:"Tekst wyraźnie to stwierdza."},
-              {statement:"Without cell communication organs work better.",answer:false,explanation:"Tekst mówi, że bez komunikacji ciało nie mogłoby utrzymać równowagi."},
-              {statement:"Homeostasis means maintaining a stable internal environment.",answer:true,explanation:"Tekst kończy to wyjaśniając."}
-            ]
-          },
-          evolutionary_biology: {
-            title: "Island Animals and Evolution",
-            fact: "Animals on islands often **develop** unusual traits because they **adapt** to local conditions without natural **predators**. Over many generations these changes become permanent. The **process** of **isolated** evolution can produce creatures found nowhere else on Earth. Darwin observed this on the Galápagos Islands.",
-            used_words: [
-              {word:"develop",translation:"rozwijać",context:"animals develop unusual traits"},
-              {word:"adapt",translation:"adaptować się",context:"adapt to local conditions"},
-              {word:"isolated",translation:"izolowany",context:"isolated evolution"}
-            ],
-            questions: [
-              {statement:"Island animals evolve without natural predators.",answer:true,explanation:"Tekst tak stwierdza."},
-              {statement:"Darwin visited the Amazon rainforest to study evolution.",answer:false,explanation:"Tekst mówi o Wyspach Galapagos, nie o Amazonce."},
-              {statement:"Island evolution can produce unique species.",answer:true,explanation:"Tekst mówi o stworzeniach, których nie ma nigdzie indziej."}
-            ]
-          },
-          nature: {
-            title: "How Trees Share Resources",
-            fact: "Trees in a forest **communicate** and share nutrients through an underground **network** of fungi. Older trees can **support** younger ones by sending sugar through these connections. Scientists call this the 'Wood Wide Web'. This **cooperation** helps the entire forest **survive** difficult conditions like drought.",
-            used_words: [
-              {word:"network",translation:"sieć",context:"underground network of fungi"},
-              {word:"support",translation:"wspierać",context:"older trees support younger ones"},
-              {word:"survive",translation:"przeżyć",context:"forest survive difficult conditions"}
-            ],
-            questions: [
-              {statement:"Trees share nutrients through underground fungal networks.",answer:true,explanation:"Tekst to opisuje."},
-              {statement:"Only young trees benefit from the Wood Wide Web.",answer:false,explanation:"Cały las korzysta z tego systemu."},
-              {statement:"The fungal network helps forests survive drought.",answer:true,explanation:"Tekst wprost to stwierdza."}
-            ]
-          },
-          physics: {
-            title: "Light as Both Wave and Particle",
-            fact: "Light behaves as both a wave and a **particle**, depending on how scientists **observe** it. This strange **property** is called wave-particle duality. It means that light does not fit neatly into a single **category**. This **discovery** was one of the most surprising findings in modern physics.",
-            used_words: [
-              {word:"observe",translation:"obserwować",context:"how scientists observe it"},
-              {word:"property",translation:"właściwość",context:"strange property of light"},
-              {word:"category",translation:"kategoria",context:"does not fit a single category"}
-            ],
-            questions: [
-              {statement:"Light always behaves only as a wave.",answer:false,explanation:"Tekst mówi, że zachowuje się zarówno jako fala, jak i cząsteczka."},
-              {statement:"Wave-particle duality is a property of light.",answer:true,explanation:"Tekst tak to definiuje."},
-              {statement:"Wave-particle duality was a surprising discovery in physics.",answer:true,explanation:"Tekst mówi, że było to jedno z najbardziej zaskakujących odkryć."}
-            ]
-          },
-          technology: {
-            title: "How Wi-Fi Transmits Data",
-            fact: "Wi-Fi **transmits** data by sending radio waves through the air at high **frequency**. Devices **receive** these signals and **convert** them into digital information. The **process** happens billions of times per second. Modern Wi-Fi can **support** dozens of devices simultaneously in one location.",
-            used_words: [
-              {word:"transmits",translation:"przesyła",context:"Wi-Fi transmits data"},
-              {word:"frequency",translation:"częstotliwość",context:"high frequency radio waves"},
-              {word:"convert",translation:"konwertować",context:"convert them into digital information"}
-            ],
-            questions: [
-              {statement:"Wi-Fi uses radio waves to transmit data.",answer:true,explanation:"Tekst to wyjaśnia."},
-              {statement:"Wi-Fi can only support one device at a time.",answer:false,explanation:"Tekst mówi o dziesiątkach urządzeń jednocześnie."},
-              {statement:"Wi-Fi converts radio signals into digital information.",answer:true,explanation:"Tekst to stwierdza."}
-            ]
-          }
+          biology: [
+            {
+              title: "How Cells Communicate",
+              fact: "Cells in the human body constantly **communicate** with each other using chemical signals. This **process** allows organs to **coordinate** their functions effectively. Without this communication, the body would not be able to **maintain** a stable internal environment. Scientists call this ability to stay balanced **homeostasis**.",
+              fact_pl: "Komórki w ciele człowieka stale komunikują się ze sobą za pomocą sygnałów chemicznych. Ten proces pozwala narządom skutecznie koordynować swoje funkcje. Bez tej komunikacji ciało nie byłoby w stanie utrzymać stabilnego środowiska wewnętrznego.",
+              used_words: [
+                {word:"communicate",translation:"komunikować się",context:"cells communicate using signals"},
+                {word:"process",translation:"proces",context:"this process allows organs"},
+                {word:"maintain",translation:"utrzymywać",context:"ability to maintain balance"}
+              ],
+              questions: [
+                {statement:"Cells communicate using chemical signals.",statement_pl:"Komórki komunikują się za pomocą sygnałów chemicznych.",answer:true,explanation:"Tekst wyraźnie to stwierdza."},
+                {statement:"Without cell communication organs work better.",statement_pl:"Bez komunikacji komórkowej narządy pracują lepiej.",answer:false,explanation:"Tekst mówi, że bez komunikacji ciało nie mogłoby utrzymać równowagi."},
+                {statement:"Homeostasis means maintaining a stable internal environment.",statement_pl:"Homeostaza oznacza utrzymywanie stabilnego środowiska wewnętrznego.",answer:true,explanation:"Tekst kończy to wyjaśniając."}
+              ]
+            },
+            {
+              title: "DNA Double Helix Structure",
+              fact: "DNA molecules carry genetic instructions for all living organisms. The unique double helix **structure** enables cells to **replicate** genetic data during growth. Enzymes **verify** the code to prevent harmful mutations.",
+              fact_pl: "Cząsteczki DNA przenoszą instrukcje genetyczne dla wszystkich żywych organizmów. Unikalna struktura podwójnej helisy umożliwia komórkom replikację danych genetycznych podczas wzrostu.",
+              used_words: [
+                {word:"structure",translation:"struktura",context:"double helix structure"},
+                {word:"replicate",translation:"replikować",context:"replicate genetic data"}
+              ],
+              questions: [
+                {statement:"DNA carries genetic instructions for living things.",statement_pl:"DNA przenosi instrukcje genetyczne dla żywych istot.",answer:true,explanation:"Tekst to potwierdza."},
+                {statement:"Enzymes never verify DNA code.",statement_pl:"Enzymy nigdy nie weryfikują kodu DNA.",answer:false,explanation:"Tekst podaje, że enzymy weryfikują kod."},
+                {statement:"DNA double helix helps cells replicate data.",statement_pl:"Podwójna helisa DNA pomaga komórkom replikować dane.",answer:true,explanation:"Prawda."}
+              ]
+            }
+          ],
+          evolutionary_biology: [
+            {
+              title: "Island Animals and Evolution",
+              fact: "Animals on islands often **develop** unusual traits because they **adapt** to local conditions without natural **predators**. Over many generations these changes become permanent. The **process** of **isolated** evolution can produce creatures found nowhere else on Earth. Darwin observed this on the Galápagos Islands.",
+              fact_pl: "Zwierzęta na wyspach często rozwijają nietypowe cechy, ponieważ adaptują się do lokalnych warunków bez naturalnych drapieżników. Przez wiele pokoleń te zmiany stają się trwałe.",
+              used_words: [
+                {word:"develop",translation:"rozwijać",context:"animals develop unusual traits"},
+                {word:"adapt",translation:"adaptować się",context:"adapt to local conditions"},
+                {word:"isolated",translation:"izolowany",context:"isolated evolution"}
+              ],
+              questions: [
+                {statement:"Island animals evolve without natural predators.",statement_pl:"Zwierzęta wyspowe ewoluują bez naturalnych drapieżników.",answer:true,explanation:"Tekst tak stwierdza."},
+                {statement:"Darwin visited the Amazon rainforest to study evolution.",statement_pl:"Darwin odwiedził lasy deszczowe Amazonki, aby badać ewolucję.",answer:false,explanation:"Tekst mówi o Wyspach Galapagos."},
+                {statement:"Island evolution can produce unique species.",statement_pl:"Ewolucja wyspowa może tworzyć unikalne gatunki.",answer:true,explanation:"Tekst mówi o stworzeniach niespotykanych nigdzie indziej."}
+              ]
+            }
+          ]
         };
-        return OFFLINE[category] || OFFLINE.biology;
+        const catList = OFFLINE[category] || OFFLINE.biology;
+        const fresh = catList.filter(item => !seenParam.includes(item.title.toLowerCase()));
+        return fresh.length > 0 ? fresh[Math.floor(Math.random() * fresh.length)] : catList[0];
       }
 
       // 37. POST /api/gemini/rpg_adventure
