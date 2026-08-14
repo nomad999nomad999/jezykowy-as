@@ -211,41 +211,44 @@ Example: {{"text": "She had no **doubt** that she made the right choice. The dec
 
 def generate_sentence_builder(word: str, translation: str) -> dict:
     """Generuje zdanie do ćwiczenia Budowanie Zdań — zwraca zdanie + rozsypane słowa."""
-    ctx = random.choice(_CONTEXTS)
-    style = random.choice([
-        "Use past tense.", "Use present tense.", "Make it a question.",
-        "Use future tense.", "Make it about a specific person.",
-        "Use a surprising scenario.", "Keep it simple and clear.",
-    ])
-    prompt = f"""You are an English teacher for a Polish speaker learning English.
+    try:
+        ctx = random.choice(_CONTEXTS)
+        style = random.choice([
+            "Use past tense.", "Use present tense.", "Make it a question.",
+            "Use future tense.", "Make it about a specific person.",
+            "Use a surprising scenario.", "Keep it simple and clear.",
+        ])
+        prompt = f"""You are an English teacher for a Polish speaker learning English.
 Word: "{word}" (Polish: "{translation}")
 Context: {ctx}. {style}
 
 Generate a JSON with:
-1. "sentence": A natural English sentence using "{word}" (6-10 words). MUST contain "{word}" exactly. No special punctuation except period at end.
+1. "sentence": A natural English sentence using "{word}" (6-10 words). MUST contain "{word}" naturally. No special punctuation except period at end.
 2. "translation_pl": Polish translation of that sentence.
 
 Rules:
-- The sentence must use exactly the word "{word}" (not a different form)
+- The sentence must use the word "{word}"
 - Keep it short (6-10 words)
 - Natural, everyday English
 
 Respond ONLY with valid JSON, no markdown.
 Example: {{"sentence": "She had no doubt about her decision.", "translation_pl": "Nie miała wątpliwości co do swojej decyzji."}}"""
 
-    raw = _ask(prompt)
-    parsed = _parse_json(raw)
-    if parsed and isinstance(parsed, dict) and "sentence" in parsed and word.lower() in parsed["sentence"].lower():
-        sentence = parsed["sentence"]
-        translation_pl = parsed.get("translation_pl", "")
-        words = sentence.split()
-        scrambled = words[:]
-        random.shuffle(scrambled)
-        attempts = 0
-        while scrambled == words and attempts < 5:
+        raw = _ask(prompt)
+        parsed = _parse_json(raw)
+        if parsed and isinstance(parsed, dict) and "sentence" in parsed and parsed["sentence"].strip():
+            sentence = parsed["sentence"].strip()
+            translation_pl = parsed.get("translation_pl", "")
+            words = sentence.split()
+            scrambled = words[:]
             random.shuffle(scrambled)
-            attempts += 1
-        return {"sentence": sentence, "words_scrambled": scrambled, "translation_pl": translation_pl}
+            attempts = 0
+            while scrambled == words and len(words) > 1 and attempts < 5:
+                random.shuffle(scrambled)
+                attempts += 1
+            return {"sentence": sentence, "words_scrambled": scrambled, "translation_pl": translation_pl}
+    except Exception as ex:
+        print(f"generate_sentence_builder error: {ex}")
 
     fallback_obj = _smart_fallback_sentence(word, translation)
     sentence = fallback_obj["sentence"]
@@ -255,7 +258,7 @@ Example: {{"sentence": "She had no doubt about her decision.", "translation_pl":
     return {
         "sentence": sentence,
         "words_scrambled": scrambled,
-        "translation_pl": fallback_obj["sentence_pl"]
+        "translation_pl": fallback_obj.get("sentence_pl", "")
     }
 
 
@@ -784,6 +787,106 @@ Return ONLY valid JSON (no markdown):
         "user_translation": user_translation,
         "grammar_tip": "Zawsze staraj się przetłumaczyć całe zdanie po angielsku."
     }
+
+
+def generate_debate_init(topic: str, user_stance: str = "FOR") -> dict:
+    """Generates an initial debate topic stance, opening argument, and target vocabulary."""
+    prompt = f"""You are a charismatic, sharp English debate opponent in a debate training app.
+Debate Topic: "{topic}"
+User Stance: "{user_stance}" (User argues FOR or AGAINST)
+Your Stance: Take the OPPOSITE stance of the user eloquently!
+
+Generate a structured opening response in JSON:
+1. "topic": the debate topic
+2. "ai_stance": short description of AI's position in English
+3. "ai_opening_en": sharp, polite 2-3 sentence opening argument in English
+4. "ai_opening_pl": Polish translation of your opening argument
+5. "key_vocab": array of 3 useful English words/phrases for this debate with Polish translations [{{"word": "...", "translation": "..."}}]
+
+Return ONLY valid JSON:
+{{
+  "topic": "{topic}",
+  "ai_stance": "Pro-office / Anti-remote work",
+  "ai_opening_en": "While working from home seems comfortable, it leads to social isolation and kills spontaneous team collaboration.",
+  "ai_opening_pl": "Choć praca z domu wydaje się wygodna, prowadzi do izolacji społecznej i zabija spontaniczną współpracę zespołową.",
+  "key_vocab": [
+    {{"word": "isolation", "translation": "izolacja"}},
+    {{"word": "collaboration", "translation": "współpraca"}},
+    {{"word": "spontaneous", "translation": "spontaniczny"}}
+  ]
+}}
+"""
+    raw = _ask(prompt)
+    try:
+        s = raw.find("{"); e = raw.rfind("}")
+        if s != -1 and e != -1:
+            raw = raw[s:e+1]
+        res = json.loads(raw)
+        if "ai_opening_en" in res:
+            return res
+    except Exception as ex:
+        print(f"generate_debate_init error: {ex}")
+
+    return {
+        "topic": topic,
+        "ai_stance": "Opposite Stance",
+        "ai_opening_en": f"Regarding '{topic}', there are strong counterarguments to consider. Remote interaction often lacks personal connection.",
+        "ai_opening_pl": f"W kwestii '{topic}' należy rozważyć silne kontrargumenty. Zdalnej interakcji często brakuje osobistej więzi.",
+        "key_vocab": [
+            {"word": "counterargument", "translation": "kontrargument"},
+            {"word": "perspective", "translation": "perspektywa"},
+            {"word": "interaction", "translation": "interakcja"}
+        ]
+    }
+
+
+def evaluate_debate_turn(topic: str, chat_history: list, user_input: str, turn_number: int = 1) -> dict:
+    """Evaluates user's debate turn, provides feedback in Polish, and generates AI's counter-argument."""
+    history_str = "\n".join([f"{msg.get('role','').upper()}: {msg.get('text','')}" for msg in chat_history[-6:]])
+
+    prompt = f"""You are a skilled English debate partner analyzing a Polish student's response in an English debate.
+Topic: "{topic}"
+Debate History:
+{history_str}
+
+Student's Latest Response: "{user_input}"
+Turn Number: {turn_number} of 3
+
+REQUIREMENTS:
+1. "feedback_pl": Polish constructive feedback (1-2 sentences) commenting on the strength of their argument, grammar, or word choice.
+2. "argument_score": score from 0 to 100 on argument clarity and English quality.
+3. "ai_reply_en": Your eloquent, polite counterargument in English (2-3 sentences). Push back constructively or raise a new point!
+4. "ai_reply_pl": Polish translation of your counterargument.
+5. "is_debate_complete": boolean (true if turn_number >= 3, else false)
+
+Return ONLY valid JSON:
+{{
+  "feedback_pl": "Świetny argument! Trafnie zauważyłeś korzyści finansowe. Mała poprawka: mówimy 'spend time on', a nie 'in'.",
+  "argument_score": 85,
+  "ai_reply_en": "You make a fair point about cost savings. However, does saving money justify the loss of face-to-face mentorship for junior employees?",
+  "ai_reply_pl": "Masz słuszność co do oszczędności finansowych. Jednak czy oszczędzanie pieniędzy usprawiedliwia utratę bezpośredniego mentoringu dla młodszych pracowników?",
+  "is_debate_complete": false
+}}
+"""
+    raw = _ask(prompt)
+    try:
+        s = raw.find("{"); e = raw.rfind("}")
+        if s != -1 and e != -1:
+            raw = raw[s:e+1]
+        res = json.loads(raw)
+        if "ai_reply_en" in res and "feedback_pl" in res:
+            return res
+    except Exception as ex:
+        print(f"evaluate_debate_turn error: {ex}")
+
+    return {
+        "feedback_pl": f"Dobry argument ({len(user_input.split())} słów). Kontynuuj debatuje po angielsku!",
+        "argument_score": 80,
+        "ai_reply_en": "That is an interesting angle. Nonetheless, we must evaluate whether the benefits truly outweigh the challenges.",
+        "ai_reply_pl": "To ciekawy punkt widzenia. Niemniej jednak musimy ocenić, czy korzyści rzeczywiście przeważają nad wyzwaniami.",
+        "is_debate_complete": turn_number >= 3
+    }
+
 
 
 

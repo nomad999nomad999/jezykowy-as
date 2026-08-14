@@ -178,6 +178,18 @@
         </div>
         <div id="homeQuestsList">
           <p style="text-align:center;color:var(--text3);font-size:13px">Ładowanie misji…</p>
+        </div>
+      </div>
+
+      <!-- Wyzwania Tygodnia -->
+      <div class="stats-section-card" id="homeWeeklySection" style="margin-top:16px;background:linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(168, 85, 247, 0.06));border:1px solid rgba(245, 158, 11, 0.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 class="stats-section-title" style="margin:0">🏅 Wyzwania Tygodnia</h3>
+          <span id="homeWeeklyBadge" style="font-size:12px;color:var(--amber);font-weight:600">Odświeżają się co poniedziałek</span>
+        </div>
+        <div id="homeWeeklyList">
+          <p style="text-align:center;color:var(--text3);font-size:13px">Ładowanie wyzwań tygodnia…</p>
+        </div>
       </div>
 
       <!-- Dzienny Postęp XP -->
@@ -355,6 +367,12 @@
           <span class="ex-name">Tłumaczenie Zdań (Głosowo & Pisemnie)</span>
           <span class="ex-desc">Przetłumacz wygenerowane zdanie z polskiego na angielski. Wybierz trudność oraz tryb głosu lub pisania!</span>
           <span class="ex-xp">+10-15 XP/zdanie</span>
+        </button>
+        <button class="ex-card ex-card-new" style="grid-column: span 2; background: linear-gradient(135deg, rgba(234, 88, 12, 0.18), rgba(168, 85, 247, 0.18)); border-color: rgba(234, 88, 12, 0.5);" onclick="Exercise.start('debate_it')">
+          <span class="ex-icon">⚖️</span>
+          <span class="ex-name">Debate It! (Symulator Debaty AI)</span>
+          <span class="ex-desc">Wybierz kontrowersyjny temat, broń swojego stanowiska na głos lub pisemnie i pokonaj argumenty AI!</span>
+          <span class="ex-xp">+12-25 XP/runda</span>
         </button>
       </div>
 
@@ -624,7 +642,7 @@
     </div>
     <div style="border-top:1px solid var(--border);padding-top:16px;font-size:12px;color:var(--text3);display:flex;justify-content:space-between;align-items:center">
       <span>Ustawienia są zapisywane lokalnie w pamięci przeglądarki.</span>
-      <span style="font-weight:600;color:var(--green)">Wersja: 2026.08.13 build-2</span>
+      <span style="font-weight:600;color:var(--green)">Wersja: 2026.08.14 build-v30 (Fix Sentence Builder)</span>
     </div>
   </div>
 </div>
@@ -643,6 +661,7 @@
 <script src="js/exercise-rpg.js"></script>
 <script src="js/exercise-voicecoach.js"></script>
 <script src="js/exercise-translate.js"></script>
+<script src="js/exercise-debate.js"></script>
 <script src="js/home.js"></script>
 <script src="app.js"></script>
 </body>

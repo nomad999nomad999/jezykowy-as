@@ -52,18 +52,53 @@ Object.assign(Exercise, {
         <button class="btn btn-outline" style="margin-top:8px;width:100%;font-size:13px;opacity:0.7" onclick="Exercise.sbSkip()">Pomiń słowo →</button>
       </div>`;
 
-    // Load sentence from Gemini
-    const res = await API.get(`/api/gemini/sentence_builder?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation)}`);
-    this._sbSentence = res.sentence || '';
-    this._sbPool = [...(res.words_scrambled || res.sentence.split(' '))];
+    // Load sentence from Gemini safely with client-side fallback
+    let res = null;
+    try {
+      res = await API.get(`/api/gemini/sentence_builder?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation)}`);
+    } catch(e) {
+      console.warn("Error fetching sentence_builder:", e);
+    }
+
+    let sentence = (res && typeof res.sentence === 'string' && res.sentence.trim()) ? res.sentence.trim() : '';
+    let translationPl = (res && res.translation_pl) ? res.translation_pl : '';
+    let scrambled = (res && Array.isArray(res.words_scrambled) && res.words_scrambled.length > 0) ? [...res.words_scrambled] : null;
+
+    if (!sentence) {
+      const cleanTr = w.translation ? w.translation.split(';')[0].split(',')[0].trim() : w.word;
+      const fallbacks = [
+        `I want to learn how to use the word ${w.word} correctly.`,
+        `She explained the meaning of ${w.word} in class.`,
+        `We should try to use ${w.word} in everyday conversation.`,
+        `He asked a question about the word ${w.word}.`,
+        `Do you know how to translate ${w.word} to Polish?`
+      ];
+      sentence = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+      translationPl = `Słowo "${w.word}" oznacza "${cleanTr}".`;
+    }
+
+    const wordsArr = sentence.split(/\s+/).filter(Boolean);
+    if (!scrambled || scrambled.length !== wordsArr.length) {
+      scrambled = [...wordsArr].sort(() => Math.random() - 0.5);
+      let attempts = 0;
+      while (scrambled.join(' ') === wordsArr.join(' ') && wordsArr.length > 1 && attempts < 5) {
+        scrambled.sort(() => Math.random() - 0.5);
+        attempts++;
+      }
+    }
+
+    this._sbSentence = sentence;
+    this._sbPool = scrambled;
     this._sbPlaced = [];
-    if (res.translation_pl && !res.translation_pl.startsWith('(offline')) {
+
+    if (translationPl && !translationPl.startsWith('(offline')) {
       const transEl = document.querySelector('#sbAnswerArea');
-      // Show pl translation as hint below the word
-      const hint = document.createElement('div');
-      hint.style.cssText = 'font-size:12px;color:var(--text3);text-align:center;margin-bottom:8px';
-      hint.textContent = '🇵🇱 ' + res.translation_pl;
-      transEl?.parentNode?.insertBefore(hint, transEl);
+      if (transEl) {
+        const hint = document.createElement('div');
+        hint.style.cssText = 'font-size:12px;color:var(--text3);text-align:center;margin-bottom:8px';
+        hint.textContent = '🇵🇱 ' + translationPl;
+        transEl.parentNode?.insertBefore(hint, transEl);
+      }
     }
     this._sbRenderPool();
   },

@@ -76,6 +76,8 @@ def favicon():
 @app.route("/<path:filename>")
 def static_files(filename):
     """Serwuje pliki statyczne z nagłówkami no-cache dla JS/CSS."""
+    if filename.startswith("api/"):
+        return jsonify({"error": "Endpoint not found"}), 404
     from flask import make_response
     response = make_response(send_from_directory("static", filename))
     # Wyłącz cache dla plików JS/CSS — zawsze świeże
@@ -508,6 +510,26 @@ def dialogue_reply():
     expected_phrases = data.get("expected_phrases", [])
     goal = data.get("goal", "")
     return jsonify(gemini.evaluate_dialogue_turn(chat_history, user_input, expected_phrases, goal))
+
+@app.route("/api/exercise/debate/init")
+def debate_init():
+    user, err, code = _require_user()
+    if err: return err, code
+    topic = request.args.get("topic", "Is Remote Work Better Than Office Work?")
+    stance = request.args.get("stance", "FOR")
+    return jsonify(gemini.generate_debate_init(topic, stance))
+
+@app.route("/api/exercise/debate/reply", methods=["POST"])
+def debate_reply():
+    user, err, code = _require_user()
+    if err: return err, code
+    data = request.json
+    topic = data.get("topic", "")
+    chat_history = data.get("chat_history", [])
+    user_input = data.get("user_input", "")
+    turn_number = data.get("turn_number", 1)
+    return jsonify(gemini.evaluate_debate_turn(topic, chat_history, user_input, turn_number))
+
 
 # ─── Session & XP ──────────────────────────────────────────────────────────────
 @app.route("/api/session", methods=["POST"])

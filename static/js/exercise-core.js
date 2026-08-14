@@ -14,7 +14,7 @@ const Exercise = {
 
   async start(type) {
     this.type = type; this.idx = 0; this.score = 0; this.xpEarned = 0;
-    const titles = { super_quiz:'🏆 Super-Quiz', flashcards:'🎴 Fiszki', multiple_choice:'🎯 Wybór wielokrotny', fill_blank:'✍️ Uzupełnij lukę (ABCD)', match_pairs:'🔗 Dopasuj pary', speed_round:'⚡ Speed Round', context:'🧩 Kontekst AI', audio_quiz:'🔊 Audio Quiz', srs:'🧠 Powtórka SRS', hands_free:'🎧 Audionauka', quick_challenge:'⚡ Szybkie Wyzwanie', sentence_builder:'🔤 Budowanie zdań', daily_fact:'🧪 Ciekawostka Dnia', rpg_adventure:'⚔️ Przygoda RPG z AI', dialogue:'💬 Symulator Dialogu', voice_coach:'🎙️ Trener Wymowy AI', sentence_translation:'🗣️💬 Tłumaczenie Zdań' };
+    const titles = { super_quiz:'🏆 Super-Quiz', flashcards:'🎴 Fiszki', multiple_choice:'🎯 Wybór wielokrotny', fill_blank:'✍️ Uzupełnij lukę (ABCD)', match_pairs:'🔗 Dopasuj pary', speed_round:'⚡ Speed Round', context:'🧩 Kontekst AI', audio_quiz:'🔊 Audio Quiz', srs:'🧠 Powtórka SRS', hands_free:'🎧 Audionauka', quick_challenge:'⚡ Szybkie Wyzwanie', sentence_builder:'🔤 Budowanie zdań', daily_fact:'🧪 Ciekawostka Dnia', rpg_adventure:'⚔️ Przygoda RPG z AI', dialogue:'💬 Symulator Dialogu', voice_coach:'🎙️ Trener Wymowy AI', sentence_translation:'🗣️💬 Tłumaczenie Zdań', debate_it:'⚖️ Debate It! - Debata AI' };
     document.getElementById('modalTitle').textContent = titles[type] || type;
     document.getElementById('exerciseModal').classList.remove('hidden');
     document.getElementById('modalBody').innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner" style="margin:auto"></div></div>';
@@ -35,6 +35,7 @@ const Exercise = {
     else if (type === 'dialogue') await this.startDialogue();
     else if (type === 'voice_coach') await this.startVoiceCoach();
     else if (type === 'sentence_translation') await this.startSentenceTranslation();
+    else if (type === 'debate_it') await this.startDebate();
   },
 
 

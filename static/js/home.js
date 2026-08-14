@@ -211,6 +211,33 @@ const Home = {
       }
     } catch(e) {}
 
+    // Weekly Challenges on Home
+    try {
+      const wRes = await API.get('/api/weekly_challenges');
+      const wEl = document.getElementById('homeWeeklyList');
+      const wBadge = document.getElementById('homeWeeklyBadge');
+      if (wRes && wRes.challenges && wEl) {
+        if (wBadge) wBadge.textContent = `${wRes.days_left} d. do resetu`;
+        wEl.innerHTML = wRes.challenges.map(c => {
+          const pct = Math.min(100, Math.round((c.progress / c.target) * 100));
+          const isDone = c.completed;
+          return `<div class="quest-card ${isDone ? 'quest-done' : ''}" style="border-left:3px solid var(--amber);margin-bottom:8px">
+            <div class="quest-top">
+              <span class="quest-icon">${c.icon || '🏅'}</span>
+              <div class="quest-info">
+                <div class="quest-desc" style="font-weight:600">${c.description}</div>
+                <div class="quest-prog-text">${c.progress}/${c.target}</div>
+              </div>
+              <div class="quest-xp" style="color:var(--amber)">${isDone ? '✅ ' : ''}+${c.xp_reward} XP</div>
+            </div>
+            <div class="quest-bar-wrap">
+              <div class="quest-bar-fill" style="width:${pct}%;background:linear-gradient(90deg, var(--amber), #a855f7)"></div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+    } catch(e) {}
+
     // Daily XP History on Home
     try {
       const history = await API.get('/api/stats/history?days=7');

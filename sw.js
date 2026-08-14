@@ -1,4 +1,4 @@
-const CACHE = 'eng-2026-08-13-v28';
+const CACHE = 'eng-2026-08-14-v30';
 const ASSETS = [
   './',
   'index.html',
@@ -29,6 +29,7 @@ const ASSETS = [
   'js/exercise-rpg.js',
   'js/exercise-voicecoach.js',
   'js/exercise-translate.js',
+  'js/exercise-debate.js',
   'js/home.js'
 ];
 

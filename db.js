@@ -115,7 +115,7 @@ Example: {"sentence": "She had no doubt about her decision.", "translation_pl": 
         const s = raw.indexOf("{"), e2 = raw.lastIndexOf("}");
         if (s !== -1 && e2 !== -1) raw = raw.substring(s, e2 + 1);
         const parsed = JSON.parse(raw);
-        if (!parsed.sentence || !parsed.sentence.toLowerCase().includes(word.toLowerCase())) throw new Error("Word missing from sentence");
+        if (!parsed.sentence || !parsed.sentence.trim()) throw new Error("Missing sentence");
         // Scramble words client-side
         const words = parsed.sentence.split(" ");
         const scrambled = [...words].sort(() => Math.random() - 0.5);
@@ -418,7 +418,12 @@ const DB = {
       skipped_coca_words: "++id, user_id, word, [user_id+word]",
       word_of_day: "++id, wod_date",
       srs_cards: "++id, user_id, word_id, next_review, [user_id+word_id]",
-      word_promotions: "++id, user_id"
+      word_promotions: "++id, user_id",
+      weekly_challenges: "++id, user_id, week_key, quest_type"
+    });
+
+    this.db.version(2).stores({
+      weekly_challenges: "++id, user_id, week_key, quest_type"
     });
 
     try {
@@ -440,7 +445,8 @@ const DB = {
           skipped_coca_words: "++id, user_id, word, [user_id+word]",
           word_of_day: "++id, wod_date",
           srs_cards: "++id, user_id, word_id, next_review, [user_id+word_id]",
-          word_promotions: "++id, user_id"
+          word_promotions: "++id, user_id",
+          weekly_challenges: "++id, user_id, week_key, quest_type"
         });
         await this.db.open();
         console.log("Baza danych IndexedDB odtworzona pomyślnie.");
@@ -742,6 +748,70 @@ const DB = {
         });
       }
     }
+  },
+
+  getWeekKey(d = new Date()) {
+    const target = new Date(d.valueOf());
+    const dayNr = (d.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNr + 3);
+    const firstThursday = target.valueOf();
+    target.setMonth(0, 1);
+    if (target.getDay() !== 4) {
+      target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
+    }
+    const weekNr = 1 + Math.round((firstThursday - target.valueOf()) / 604800000);
+    return `${target.getFullYear()}-W${String(weekNr).padStart(2, '0')}`;
+  },
+
+  async ensureWeeklyChallenges(userId) {
+    const weekKey = this.getWeekKey();
+    let existing = [];
+    try {
+      existing = await this.db.weekly_challenges.where({ user_id: userId, week_key: weekKey }).toArray();
+    } catch(e) {
+      console.warn("weekly_challenges store initializing...");
+      return;
+    }
+    if (existing.length === 0) {
+      const defaultWeekly = [
+        { quest_type: "classify_weekly", description: "Sklasyfikuj 60 nowych słów w tym tygodniu", target: 60, icon: "🔍", xp_reward: 250 },
+        { quest_type: "session_weekly",  description: "Ukończ 10 dowolnych ćwiczeń w tym tygodniu", target: 10, icon: "🏋️", xp_reward: 300 },
+        { quest_type: "xp_weekly",       description: "Zdobądź 600 XP w tym tygodniu",             target: 600, icon: "⭐", xp_reward: 450 }
+      ];
+      for (const q of defaultWeekly) {
+        await this.db.weekly_challenges.add({
+          user_id: userId,
+          week_key: weekKey,
+          quest_type: q.quest_type,
+          description: q.description,
+          icon: q.icon,
+          target: q.target,
+          progress: 0,
+          completed: 0,
+          xp_reward: q.xp_reward
+        });
+      }
+    }
+  },
+
+  async updateWeeklyChallengeProgress(userId, questType, amount = 1) {
+    const weekKey = this.getWeekKey();
+    let quests = [];
+    try {
+      quests = await this.db.weekly_challenges.where({ user_id: userId, week_key: weekKey, quest_type: questType }).toArray();
+    } catch(e) { return []; }
+    const completedNow = [];
+    for (const q of quests) {
+      if (q.completed) continue;
+      const newProgress = Math.min(q.progress + amount, q.target);
+      const newlyDone = newProgress >= q.target;
+      await this.db.weekly_challenges.update(q.id, { progress: newProgress, completed: newlyDone ? 1 : 0 });
+      if (newlyDone) {
+        completedNow.push({ desc: q.description, xp: q.xp_reward, icon: q.icon });
+        await this.addUserXp(userId, q.xp_reward);
+      }
+    }
+    return completedNow;
   },
 
   // Generowanie słowa dnia deterministycznie
@@ -1810,6 +1880,72 @@ const DB = {
         }
 
         return { next_review: nextDateStr, interval, ef: Math.round(ef * 100) / 100 };
+      }
+
+      // 32.5 GET /api/weekly_challenges
+      if (method === "GET" && path === "/api/weekly_challenges") {
+        await this.ensureWeeklyChallenges(userId);
+        const weekKey = this.getWeekKey();
+        const list = await this.db.weekly_challenges.where({ user_id: userId, week_key: weekKey }).toArray();
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const daysLeft = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+        return { week_key: weekKey, days_left: daysLeft, challenges: list };
+      }
+
+      // GET /api/exercise/debate/init
+      if (method === "GET" && path === "/api/exercise/debate/init") {
+        const topic = params.get("topic") || "Is Remote Work Better Than Office Work?";
+        const stance = params.get("stance") || "FOR";
+        
+        try {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 12000);
+          const resp = await fetch(url, { headers: { 'X-User-Id': userId.toString() }, signal: controller.signal });
+          clearTimeout(tid);
+          if (resp.ok) { const d = await resp.json(); if (d && d.ai_opening_en) return d; }
+        } catch(e) {}
+
+        return {
+          topic: topic,
+          ai_stance: stance === 'FOR' ? 'Anti Stance' : 'Pro Stance',
+          ai_opening_en: `While discussing '${topic}', we must critically examine whether the advantages truly balance out the potential risks.`,
+          ai_opening_pl: `Dyskutując o '${topic}', musimy krytycznie zbadać, czy zalety rzeczywiście równoważą potencjalne ryzyka.`,
+          key_vocab: [
+            { word: "perspective", translation: "perspektywa" },
+            { word: "advantage", translation: "zaleta" },
+            { word: "consequence", translation: "konsekwencja" }
+          ]
+        };
+      }
+
+      // POST /api/exercise/debate/reply
+      if (method === "POST" && path === "/api/exercise/debate/reply") {
+        const { topic, user_input, turn_number } = data;
+        const turnNum = turn_number || 1;
+        
+        try {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 12000);
+          const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-User-Id": userId.toString() },
+            body: JSON.stringify(data),
+            signal: controller.signal
+          });
+          clearTimeout(tid);
+          if (resp.ok) { const d = await resp.json(); if (d && d.ai_reply_en) return d; }
+        } catch(e) {}
+
+        const wordCount = (user_input || '').split(' ').filter(Boolean).length;
+        const score = Math.min(95, Math.max(65, 60 + wordCount * 3));
+        return {
+          feedback_pl: `Twój argument jest przekonujący (${wordCount} słów). Świetna struktura riposty!`,
+          argument_score: score,
+          ai_reply_en: `That is an interesting counterargument. However, how do you address the long-term impact on overall quality?`,
+          ai_reply_pl: `To ciekawy kontrargument. Jednak jak odniesiesz się do długofalowego wpływu na ogólną jakość?`,
+          is_debate_complete: turnNum >= 3
+        };
       }
 
       // 33. GET /api/gemini/sentence (Spróbuj pobrać z serwera, w razie braku połączenia użyj offline fallback)
