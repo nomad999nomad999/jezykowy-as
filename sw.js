@@ -1,4 +1,4 @@
-const CACHE = 'eng-2026-08-14-v30';
+const CACHE = 'eng-2026-08-14-v31';
 const ASSETS = [
   './',
   'index.html',
@@ -52,8 +52,8 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = e.request.url;
 
-  // Network First for HTML and CSS to guarantee fresh styles immediately
-  if (url.includes('index.html') || url.endsWith('/') || url.includes('.css')) {
+  // Network First for HTML, CSS and JS — guarantees fresh updates always load
+  if (url.includes('index.html') || url.endsWith('/') || url.includes('.css') || url.includes('.js')) {
     e.respondWith(
       fetch(e.request).then(resp => {
         if (resp.status === 200) {
