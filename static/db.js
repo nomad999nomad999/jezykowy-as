@@ -645,37 +645,67 @@ const DB = {
   // Generowanie misji dziennych z daty
   async ensureDailyQuests(userId, todayStr) {
     let existing = await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).toArray();
-    if (existing.length > 0 && existing.length < 5) {
+    if (existing.length > 0 && existing.length < 7) {
       await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).delete();
       existing = [];
     }
     if (existing.length === 0) {
       const seed = this.getStringSeed(todayStr + String(userId));
 
-      // Generuj poszczególne części misji:
-      // 1. Sklasyfikuj nowe słowa (wybierz losowo 1 z 3 wariantów)
+      // ── 1. Sklasyfikuj nowe słowa (losowy wariant) ──────────────────────────────
       const classifyVariants = [
-        { type: "classify",        desc: "Sklasyfikuj 15 nowych słów",                        target: 15,  xp: 40,  icon: "🔍" },
-        { type: "classify",        desc: "Sklasyfikuj 30 nowych słów",                        target: 30,  xp: 75,  icon: "🔍" },
-        { type: "classify",        desc: "Sklasyfikuj 50 nowych słów",                        target: 50,  xp: 120, icon: "🔍" }
+        { type: "classify", desc: "Sklasyfikuj 15 nowych słów",  target: 15,  xp: 40,  icon: "🔍" },
+        { type: "classify", desc: "Sklasyfikuj 30 nowych słów",  target: 30,  xp: 75,  icon: "🔍" },
       ];
       const classifyQuest = classifyVariants[seed % classifyVariants.length];
-      
-      // 2. Sesja (zawsze obecna)
+
+      // ── 2. Misja sesji (zawsze obecna) ─────────────────────────────────────────
       const sessionQuest = { type: "session", desc: "Ukończ 2 dowolne ćwiczenia", target: 2, xp: 70, icon: "🏋️" };
-      
-      // 3. Pozostałe aktywności (do rotacji)
+
+      // ── 3. Super-Quiz — zawsze jeden z 3 rotacyjnych slotów (gwarantowany) ──────
+      const superQuizVariants = [
+        { type: "super_quiz", desc: "Ukończ Super-Quiz",                  target: 1, xp: 80,  icon: "🏆" },
+        { type: "super_quiz", desc: "Ukończ 2 rundy Super-Quizu",         target: 2, xp: 140, icon: "🏆" },
+      ];
+      const superQuizQuest = superQuizVariants[seed % superQuizVariants.length];
+
+      // ── 4. Pula rotacyjna (2 misje z poniższej listy) ───────────────────────────
       const rotationPool = [
-        { type: "speed_round",     desc: "Ukończ Speed Round",                                target: 1,   xp: 65,  icon: "⚡" },
-        { type: "match_pairs",     desc: "Ukończ Dopasuj pary",                               target: 1,   xp: 55,  icon: "🔗" },
-        { type: "super_quiz",      desc: "Ukończ Super-Quiz",                                 target: 1,   xp: 80,  icon: "🏆" },
-        { type: "srs",             desc: "Ukończ powtórkę SRS",                               target: 1,   xp: 65,  icon: "🧠" },
-        { type: "fill_blank",      desc: "Ukończ Test pisowni",                               target: 1,   xp: 65,  icon: "✍️" },
-        { type: "promote_words",   desc: "Przenieś 3 słowa do listy \"Poznałem\"",            target: 3,   xp: 100, icon: "🎓" },
-        { type: "quick_challenge", desc: "Ukończ Szybkie Wyzwanie",                          target: 1,   xp: 60,  icon: "⏱️" },
-        { type: "daily_fact",      desc: "Ukończ Ciekawostkę Dnia",                           target: 1,   xp: 70,  icon: "🧪" },
-        { type: "sentence_builder", desc: "Ukończ Budowanie zdań",                            target: 1,   xp: 60,  icon: "🔤" },
-        { type: "hands_free",      desc: "Ukończ Audionaukę",                                 target: 1,   xp: 50,  icon: "🎧" }
+        // Ciekawostka Dnia
+        { type: "daily_fact",          desc: "Ukończ Ciekawostkę Dnia",                         target: 1, xp: 70,  icon: "🧪" },
+        { type: "daily_fact",          desc: "Ukończ 2 Ciekawostki Dnia",                        target: 2, xp: 120, icon: "🧪" },
+        // Tłumaczenie zdań
+        { type: "sentence_translation", desc: "Przetłumacz 3 zdania",                            target: 3, xp: 90,  icon: "🗣️" },
+        { type: "sentence_translation", desc: "Przetłumacz 5 zdań",                              target: 5, xp: 130, icon: "🗣️" },
+        // Speed Round
+        { type: "speed_round",         desc: "Ukończ Speed Round",                               target: 1, xp: 65,  icon: "⚡" },
+        { type: "speed_round",         desc: "Zdobądź 10 pkt w Speed Round",                     target: 10, xp: 100, icon: "⚡" },
+        // Dopasuj pary
+        { type: "match_pairs",         desc: "Ukończ Dopasuj Pary",                              target: 1, xp: 55,  icon: "🔗" },
+        // SRS
+        { type: "srs",                 desc: "Ukończ powtórkę SRS",                              target: 1, xp: 65,  icon: "🧠" },
+        { type: "srs",                 desc: "Ukończ 3 powtórki SRS",                            target: 3, xp: 110, icon: "🧠" },
+        // Test pisowni
+        { type: "fill_blank",          desc: "Ukończ Test Pisowni",                              target: 1, xp: 65,  icon: "✍️" },
+        // Promowanie słów
+        { type: "promote_words",       desc: "Przenieś 3 słowa do listy \"Poznałem\"",           target: 3, xp: 100, icon: "🎓" },
+        { type: "promote_words",       desc: "Przenieś 5 słów do listy \"Poznałem\"",            target: 5, xp: 150, icon: "🎓" },
+        // Szybkie wyzwanie
+        { type: "quick_challenge",     desc: "Ukończ Szybkie Wyzwanie",                          target: 1, xp: 60,  icon: "⏱️" },
+        // Budowanie zdań
+        { type: "sentence_builder",    desc: "Ukończ Budowanie Zdań",                            target: 1, xp: 60,  icon: "🔤" },
+        // Audionaukę
+        { type: "hands_free",          desc: "Ukończ Audionaukę",                                target: 1, xp: 50,  icon: "🎧" },
+        // Combo Trio — ukończ 3 różne ćwiczenia w jednej sesji
+        { type: "combo_trio",          desc: "Ukończ Speed Round, Match Pairs i Super-Quiz",     target: 3, xp: 120, icon: "🎯" },
+        // Flashcards
+        { type: "flashcards",          desc: "Przejrzyj 20 fiszek",                              target: 20, xp: 60,  icon: "🃏" },
+        { type: "flashcards",          desc: "Przejrzyj 50 fiszek",                              target: 50, xp: 120, icon: "🃏" },
+        // Wymowa / Trener wymowy
+        { type: "pronunciation",       desc: "Ukończ Trening Wymowy",                            target: 1, xp: 75,  icon: "🎙️" },
+        // Seria XP — zdobądź XP w ciągu dnia
+        { type: "daily_xp",            desc: "Zdobądź 100 XP dzisiaj",                           target: 100, xp: 80, icon: "⭐" },
+        { type: "daily_xp",            desc: "Zdobądź 200 XP dzisiaj",                           target: 200, xp: 150, icon: "🌟" },
       ];
 
       // Przetasuj pulę rotacyjną używając seeda (LCG)
@@ -687,11 +717,11 @@ const DB = {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
 
-      // Wybierz 3 dodatkowe misje o różnych typach
-      const chosen = [classifyQuest, sessionQuest];
-      const usedTypes = new Set(["classify", "session"]);
+      // Sloty: [classify, session, super_quiz, rotacja1, rotacja2, rotacja3, rotacja4]
+      const chosen = [classifyQuest, sessionQuest, superQuizQuest];
+      const usedTypes = new Set(["classify", "session", "super_quiz"]);
       for (const q of shuffled) {
-        if (chosen.length >= 5) break;
+        if (chosen.length >= 7) break;
         if (!usedTypes.has(q.type)) {
           usedTypes.add(q.type);
           chosen.push(q);
@@ -1582,6 +1612,21 @@ const DB = {
         if (type === "flashcards" && words > 0) {
           const qDone3 = await this.updateQuestProgress(userId, "flashcards", words);
           qDone = [...qDone, ...qDone3];
+        }
+        // sentence_translation: track individual sentences count (data.sentences_count)
+        if (type === "sentence_translation" && data.sentences_count > 0) {
+          const qSent = await this.updateQuestProgress(userId, "sentence_translation", data.sentences_count - 1); // subtract 1 already counted above
+          qDone = [...qDone, ...qSent];
+        }
+        // daily_xp: update progress with XP earned this session
+        if (xpEarned > 0) {
+          const qXp = await this.updateQuestProgress(userId, "daily_xp", xpEarned);
+          qDone = [...qDone, ...qXp];
+        }
+        // speed_round: track score (data.score) instead of just 1 completion
+        if (type === "speed_round" && data.score > 1) {
+          const qSpd = await this.updateQuestProgress(userId, "speed_round", data.score - 1);
+          qDone = [...qDone, ...qSpd];
         }
 
         const bEarned = await this.checkAndAwardBadges(userId, correct, words, type);
