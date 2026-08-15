@@ -554,7 +554,11 @@ def save_session():
     new_xp, new_lvl, actual_xp, mult = db.add_xp(user["id"], xp_earned)
     new_streak = db.get_streak(user["id"])
     quests_done = db.update_quest_progress(user["id"], "session", 1)
-    quests_done += db.update_quest_progress(user["id"], ex_type, 1)
+    if ex_type == "speed_round":
+        q_amt = max(1, correct)
+        quests_done += db.update_quest_progress(user["id"], ex_type, q_amt)
+    else:
+        quests_done += db.update_quest_progress(user["id"], ex_type, 1)
     if ex_type == "flashcards" and words_cnt > 0:
         quests_done += db.update_quest_progress(user["id"], "flashcards", words_cnt)
     badges_earned = db.check_and_award_badges(user["id"],

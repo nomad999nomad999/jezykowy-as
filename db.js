@@ -219,12 +219,19 @@ async function fetchDirectGeminiDailyFact(category, userWords, apiKey, seenTopic
 
   const prompt = `You are creating educational English content for a Polish speaker learning English.
 
-STRICT CATEGORY REQUIREMENT: The fact MUST be 100% about "${catEn}" (${catPl}). Do NOT drift to other subjects.${seenInstruction}
+STRICT CATEGORY & CONCRETENESS REQUIREMENT:
+1. TOPIC: The fact MUST be 100% about "${catEn}" (${catPl}).${seenInstruction}
+2. MAXIMUM CONCRETENESS & SPECIFICITY:
+   - ABSOLUTELY NO vague corporate fluff or generic statements (e.g. NEVER write generic lines like "Poland's economic growth has been remarkable", "allowed companies to reach new markets", "strong performance", "important for the future").
+   - MUST name REAL SPECIFIC ENTITIES (company names, brands, products, services, famous inventors, or scientific discoveries).
+   - MUST include CONCRETE DATA (exact numbers, percentages, years/dates, dollar/euro values, or production units).
+   - For "Polish Business & Economy": Focus on real Polish companies (e.g. InPost 24,000+ parcel lockers, CD Projekt Red $500M+ Witcher/Cyberpunk sales, Allegro e-commerce, Solaris 23,000+ electric buses in Berlin/Milan, Orlen energy, Wilk Elektronik GoodRAM, DocPlanner, ElevenLabs AI) with real financial numbers and export achievements!
+   - For other topics: Use specific species, discovery years, chemical formulas, space telescopes, or physical laws!
 
 User's vocabulary to practice (pick 2-4 and use them naturally): ${wordsStr}
 
 CRITICAL RULES:
-1. Write a genuinely interesting, accurate fact STRICTLY about "${catEn}".
+1. Write a fascinating, highly specific fact with real numbers, proper names, and exact services/goods.
 2. Use ONLY words from the vocabulary list above (mark with **double asterisks**). If none fit naturally, skip them.
 3. Include a Polish translation of the full fact in "fact_pl".
 4. Include Polish translations in "statement_pl" for each question.
@@ -232,7 +239,7 @@ CRITICAL RULES:
 Return ONLY valid JSON (no markdown):
 {
   "title": "Specific topic title strictly about ${catEn} (4-6 English words)",
-  "fact": "3-4 sentences (80-130 words). B1-B2 English level. Mark each used target word with **double asterisks**.",
+  "fact": "3-4 sentences (80-130 words). Must contain real names, numbers/data, and specific products/services. B1-B2 English level. Mark each used target word with **double asterisks**.",
   "fact_pl": "Complete Polish translation of the fact paragraph.",
   "used_words": [
     {"word": "used_word", "translation": "polskie tlumaczenie", "context": "short phrase using it"}
@@ -1677,7 +1684,11 @@ const DB = {
 
         const streak = await this.updateStreak(userId);
         const qDone1 = await this.updateQuestProgress(userId, "session", 1);
-        const qDone2 = await this.updateQuestProgress(userId, type, 1);
+        let qAmt = 1;
+        if (type === "speed_round") {
+          qAmt = Math.max(1, correct !== undefined ? correct : (data.score || 0));
+        }
+        const qDone2 = await this.updateQuestProgress(userId, type, qAmt);
         let qDone = [...qDone1, ...qDone2];
         if (type === "flashcards" && words > 0) {
           const qDone3 = await this.updateQuestProgress(userId, "flashcards", words);
@@ -1692,11 +1703,6 @@ const DB = {
         if (xpEarned > 0) {
           const qXp = await this.updateQuestProgress(userId, "daily_xp", xpEarned);
           qDone = [...qDone, ...qXp];
-        }
-        // speed_round: track score (data.score) instead of just 1 completion
-        if (type === "speed_round" && data.score > 1) {
-          const qSpd = await this.updateQuestProgress(userId, "speed_round", data.score - 1);
-          qDone = [...qDone, ...qSpd];
         }
 
         const bEarned = await this.checkAndAwardBadges(userId, correct, words, type);
@@ -1784,6 +1790,27 @@ const DB = {
       if (method === "GET" && path === "/api/quests") {
         const todayStr = new Date().toISOString().slice(0, 10);
         await this.ensureDailyQuests(userId, todayStr);
+
+        const speedQuests = await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr, quest_type: "speed_round" }).toArray();
+        for (const sq of speedQuests) {
+          if (sq.target > 1) {
+            const todaySessions = await this.db.sessions.where({ user_id: userId, exercise_type: "speed_round" }).toArray();
+            const todaySpeed = todaySessions.filter(s => s.session_date && s.session_date.slice(0, 10) === todayStr);
+            const totalPointsToday = todaySpeed.reduce((sum, s) => sum + (s.correct || 0), 0);
+            
+            if (totalPointsToday > 0) {
+              const newProg = Math.min(totalPointsToday, sq.target);
+              const newlyDone = newProg >= sq.target;
+              if (sq.progress !== newProg || (newlyDone && !sq.completed)) {
+                await this.db.daily_quests.update(sq.id, {
+                  progress: newProg,
+                  completed: newlyDone ? 1 : (sq.completed || 0)
+                });
+              }
+            }
+          }
+        }
+
         const list = await this.db.daily_quests.where({ user_id: userId, quest_date: todayStr }).toArray();
         return list;
       }
@@ -2163,6 +2190,72 @@ const DB = {
         // Offline fallbacks with seen_topics exclusion
         const seenParam = (params.get("seen") || "").toLowerCase();
         const OFFLINE = {
+          polish_business: [
+            {
+              title: "InPost & CD Projekt: Polish Global Tech",
+              fact: "Polish logistics giant InPost operates over 24,000 automated parcel lockers across Europe, transforming modern e-commerce delivery. Meanwhile, CD Projekt Red **achieved** international acclaim by exporting *The Witcher 3*, generating over $500 million in revenue. These innovative firms **produce** high-tech services and export goods to global **markets**.",
+              fact_pl: "Polski gigant logistyczny InPost obsługuje ponad 24 000 paczkomatów w całej Europie, rewolucjonizując dostawy e-commerce. Tymczasem studio CD Projekt Red osiągnęło międzynarodowy poklask, eksportując Wiedźmina 3 i generując ponad 500 milionów dolarów przychodu. Te innowacyjne firmy tworzą zaawansowane usługi i eksportują towary na rynki międzynarodowe.",
+              used_words: [
+                {word:"achieved",translation:"osiągnęli",context:"achieved international acclaim"},
+                {word:"produce",translation:"produkować / tworzyć",context:"produce high-tech services"},
+                {word:"markets",translation:"rynki",context:"global markets"}
+              ],
+              questions: [
+                {statement:"InPost operates over 24,000 automated parcel lockers in Europe.",statement_pl:"InPost obsługuje ponad 24 000 paczkomatów w Europie.",answer:true,explanation:"Tekst podaje liczbę 24 000 paczkomatów."},
+                {statement:"CD Projekt Red is a company that manufactures traditional steel pipes.",statement_pl:"CD Projekt Red to firma produkująca tradycyjne stalowe rury.",answer:false,explanation:"Tekst mówi, że CD Projekt Red to studio gier wideo."},
+                {statement:"The Witcher 3 generated over $500 million in sales.",statement_pl:"Wiedźmin 3 wygenerował ponad 500 milionów dolarów sprzedaży.",answer:true,explanation:"Tekst potwierdza przychód z gry Wiedźmin 3."}
+              ]
+            },
+            {
+              title: "Solaris Electric Buses in European Cities",
+              fact: "Solaris Bus & Coach, founded near Poznań, has manufactured over 23,000 buses since 1996. Their zero-emission electric buses now **operate** in major European capitals like Berlin, Milan, and Madrid. The company **provides** clean energy solutions to **improve** urban public transport.",
+              fact_pl: "Solaris Bus & Coach, założony pod Poznaniem, wyprodukował ponad 23 000 autobusów od 1996 roku. Ich bezemisyjne autobusy elektryczne kursują obecnie w głównych europejskich stolicach, takich jak Berlin, Mediolan i Madryt.",
+              used_words: [
+                {word:"operate",translation:"kursować / działać",context:"buses operate in capitals"},
+                {word:"provides",translation:"dostarcza",context:"provides clean energy"},
+                {word:"improve",translation:"ulepszać",context:"improve urban transport"}
+              ],
+              questions: [
+                {statement:"Solaris Bus & Coach was founded near Poznań.",statement_pl:"Solaris Bus & Coach powstał pod Poznaniem.",answer:true,explanation:"Tekst wskazuje na okolicę Poznania."},
+                {statement:"Solaris electric buses operate only in small Polish villages.",statement_pl:"Autobusy elektryczne Solaris kursują tylko w małych polskich wsiach.",answer:false,explanation:"Tekst wymienia stolicze miasta europejskie jak Berlin, Mediolan czy Madryt."},
+                {statement:"Solaris produced over 23,000 buses since 1996.",statement_pl:"Solaris wyprodukował ponad 23 000 autobusów od 1996 roku.",answer:true,explanation:"Tekst potwierdza liczbę 23 000 autobusów."}
+              ]
+            }
+          ],
+          primitive_human: [
+            {
+              title: "Göbekli Tepe: Prehistoric Stone Architecture",
+              fact: "Over 11,500 years ago, hunter-gatherers in Göbekli Tepe built 16-ton carved stone pillars before the invention of farming. Archaeologists **discovered** that prehistoric communities **developed** complex social organization during the Ice Age. These early humans shared tools and **created** monumental stone circles.",
+              fact_pl: "Ponad 11 500 lat temu zbieracze-łowcy w Göbekli Tepe wznieśli 16-tonowe rzeźbione kamienne filary jeszcze przed wynalezieniem rolnictwa. Archeolodzy odkryli, że prehistoryczne społeczności wykształciły złożoną organizację społeczną.",
+              used_words: [
+                {word:"discovered",translation:"odkryli",context:"archaeologists discovered"},
+                {word:"developed",translation:"rozwijali",context:"developed social organization"},
+                {word:"created",translation:"stworzyli",context:"created stone circles"}
+              ],
+              questions: [
+                {statement:"Göbekli Tepe pillars weigh up to 16 tons.",statement_pl:"Filary w Göbekli Tepe ważą do 16 ton.",answer:true,explanation:"Tekst mówi o 16-tonowych rzeźbionych kamieniach."},
+                {statement:"Göbekli Tepe was built by 21st century modern computer programmers.",statement_pl:"Göbekli Tepe wznieśli XXI-wieczni programiści komputerowi.",answer:false,explanation:"Tekst mówi o zbieraczach-łowcach sprzed 11 500 lat."},
+                {statement:"The site predates the invention of farming.",statement_pl:"Stanowisko powstało przed wynalezieniem rolnictwa.",answer:true,explanation:"Tekst wyraźnie to stwierdza."}
+              ]
+            }
+          ],
+          technology: [
+            {
+              title: "Frontier Supercomputer and AI Chips",
+              fact: "The Frontier supercomputer in Tennessee performs over 1.1 quintillion calculations per second using advanced AMD processors. Engineers **design** microchips to train massive AI models that **analyze** satellite data. This computing power helps **predict** climate shifts and discover new life-saving drugs.",
+              fact_pl: "Superkomputer Frontier w Tennessee wykonuje ponad 1,1 kwintyliona obliczeń na sekundę przy użyciu zaawansowanych procesorów AMD. Inżynierowie projektują mikrochipy do szkolenia modeli sztucznej inteligencji.",
+              used_words: [
+                {word:"design",translation:"projektować",context:"engineers design microchips"},
+                {word:"analyze",translation:"analizować",context:"analyze satellite data"},
+                {word:"predict",translation:"przewidywać",context:"predict climate shifts"}
+              ],
+              questions: [
+                {statement:"Frontier performs over 1.1 quintillion calculations per second.",statement_pl:"Frontier wykonuje ponad 1,1 kwintyliona obliczeń na sekundę.",answer:true,explanation:"Tekst podaje tę dokładną wydajność."},
+                {statement:"Frontier runs on mechanical clockwork gears.",statement_pl:"Frontier działa na mechanicznych kołach zębatych.",answer:false,explanation:"Komputer wykorzystuje procesory AMD."},
+                {statement:"Supercomputers assist in drug discovery.",statement_pl:"Superkomputery pomagają w odkrywaniu leków.",answer:true,explanation:"Tekst wspomina o lekach ratujących życie."}
+              ]
+            }
+          ],
           biology: [
             {
               title: "How Cells Communicate",
@@ -2180,34 +2273,34 @@ const DB = {
               ]
             },
             {
-              title: "DNA Double Helix Structure",
-              fact: "DNA molecules carry genetic instructions for all living organisms. The unique double helix **structure** enables cells to **replicate** genetic data during growth. Enzymes **verify** the code to prevent harmful mutations.",
-              fact_pl: "Cząsteczki DNA przenoszą instrukcje genetyczne dla wszystkich żywych organizmów. Unikalna struktura podwójnej helisy umożliwia komórkom replikację danych genetycznych podczas wzrostu.",
+              title: "CRISPR-Cas9 and DNA Double Helix",
+              fact: "In 2020, scientists won the Nobel Prize for discovering CRISPR-Cas9, a molecular tool for precise DNA editing. The double helix **structure** enables cells to **replicate** genetic data. Using fluorescent proteins, researchers **verify** how enzymes repair damaged genes.",
+              fact_pl: "W 2020 roku naukowcy otrzymali Nagrodę Nobla za odkrycie CRISPR-Cas9 – narzędzia cząsteczkowego do edycji DNA. Podwójna helisa umożliwia komórkom replikację danych genetycznych.",
               used_words: [
                 {word:"structure",translation:"struktura",context:"double helix structure"},
-                {word:"replicate",translation:"replikować",context:"replicate genetic data"}
+                {word:"replicate",translation:"replikować",context:"replicate genetic data"},
+                {word:"verify",translation:"weryfikować",context:"researchers verify enzymes"}
               ],
               questions: [
-                {statement:"DNA carries genetic instructions for living things.",statement_pl:"DNA przenosi instrukcje genetyczne dla żywych istot.",answer:true,explanation:"Tekst to potwierdza."},
-                {statement:"Enzymes never verify DNA code.",statement_pl:"Enzymy nigdy nie weryfikują kodu DNA.",answer:false,explanation:"Tekst podaje, że enzymy weryfikują kod."},
-                {statement:"DNA double helix helps cells replicate data.",statement_pl:"Podwójna helisa DNA pomaga komórkom replikować dane.",answer:true,explanation:"Prawda."}
+                {statement:"CRISPR-Cas9 team won a Nobel Prize in 2020.",statement_pl:"Zespół CRISPR-Cas9 zdobył Nagrodę Nobla w 2020 roku.",answer:true,explanation:"Tekst to potwierdza."},
+                {statement:"DNA editing was invented in 1750.",statement_pl:"Edycję DNA wynaleziono w 1750 roku.",answer:false,explanation:"Tekst mówi o Nagrodzie Nobla z 2020 r."},
+                {statement:"Enzymes can repair damaged genetic material.",statement_pl:"Enzymy mogą naprawiać uszkodzony materiał genetyczny.",answer:true,explanation:"Tekst to potwierdza."}
               ]
             }
           ],
           evolutionary_biology: [
             {
-              title: "Island Animals and Evolution",
-              fact: "Animals on islands often **develop** unusual traits because they **adapt** to local conditions without natural **predators**. Over many generations these changes become permanent. The **process** of **isolated** evolution can produce creatures found nowhere else on Earth. Darwin observed this on the Galápagos Islands.",
-              fact_pl: "Zwierzęta na wyspach często rozwijają nietypowe cechy, ponieważ adaptują się do lokalnych warunków bez naturalnych drapieżników. Przez wiele pokoleń te zmiany stają się trwałe.",
+              title: "Galápagos Finches and Natural Selection",
+              fact: "On the Galápagos Islands, Charles Darwin documented 13 distinct species of finches with specialized beaks. Small-beaked finches survived drought periods by eating small seeds, demonstrating how populations **adapt** over time. Geneticists recently **identified** the ALX1 gene responsible for beak shape variations.",
+              fact_pl: "Na wyspach Galapagos Karol Darwin udokumentował 13 osobnych gatunków zięb z wyspecjalizowanymi dziobami. Zięby o małych dziobach przetrwały suszę, jedząc małe nasiona, co pokazuje ewolucyjną adaptację.",
               used_words: [
-                {word:"develop",translation:"rozwijać",context:"animals develop unusual traits"},
-                {word:"adapt",translation:"adaptować się",context:"adapt to local conditions"},
-                {word:"isolated",translation:"izolowany",context:"isolated evolution"}
+                {word:"adapt",translation:"przystosowywać się",context:"populations adapt over time"},
+                {word:"identified",translation:"zidentyfikowali",context:"geneticists identified the gene"}
               ],
               questions: [
-                {statement:"Island animals evolve without natural predators.",statement_pl:"Zwierzęta wyspowe ewoluują bez naturalnych drapieżników.",answer:true,explanation:"Tekst tak stwierdza."},
-                {statement:"Darwin visited the Amazon rainforest to study evolution.",statement_pl:"Darwin odwiedził lasy deszczowe Amazonki, aby badać ewolucję.",answer:false,explanation:"Tekst mówi o Wyspach Galapagos."},
-                {statement:"Island evolution can produce unique species.",statement_pl:"Ewolucja wyspowa może tworzyć unikalne gatunki.",answer:true,explanation:"Tekst mówi o stworzeniach niespotykanych nigdzie indziej."}
+                {statement:"Darwin documented 13 finch species on the Galápagos Islands.",statement_pl:"Darwin udokumentował 13 gatunków zięb na Galapagos.",answer:true,explanation:"Tekst podaje dokładnie 13 gatunków."},
+                {statement:"Darwin studied finches in Antarctica.",statement_pl:"Darwin badał zięby na Antarktydzie.",answer:false,explanation:"Tekst mówi o Wyspach Galapagos."},
+                {statement:"ALX1 gene influences beak shape variation.",statement_pl:"Gen ALX1 wpływa na zmienność kształtu dzioba.",answer:true,explanation:"Tekst wspomina o genetycznym powiązaniu z genem ALX1."}
               ]
             }
           ]

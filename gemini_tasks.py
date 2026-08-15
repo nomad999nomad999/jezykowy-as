@@ -278,7 +278,7 @@ _DAILY_FACT_CATEGORIES = {
 
 
 def generate_daily_fact(category_en: str, category_pl: str, user_words: list, seen_topics: str = "") -> dict:
-    """Generuje ciekawostkę naukową z wyróżnionymi słowami użytkownika, polskim tłumaczeniem akapitu, tłumaczeniem pytań + quiz T/F."""
+    """Generuje ciekawostkę naukową/biznesową z konkretnymi danymi, nazwami firm/osiągnięć i wyróżnionymi słowami."""
     words_str = ", ".join(f'"{w["word"]}" ({w.get("translation","?")})' for w in user_words[:15])
     
     seen_instruction = ""
@@ -287,23 +287,24 @@ def generate_daily_fact(category_en: str, category_pl: str, user_words: list, se
 
     prompt = f"""You are an expert science communicator and English teacher.
 
-STRICT TOPIC REQUIREMENT:
-The educational fact MUST be 100% strictly about the category: "{category_en}" ({category_pl}).
-Do NOT change the main subject to dinosaurs, animal camouflage, space, or unrelated topics unless "{category_en}" specifically demands it!
-For example:
-- If Category is "Primitive Humans & Archaeology", write ONLY about early human species, stone tools, fire, Neanderthals, cave paintings, or prehistoric life.
-- If Category is "Polish Business & Economy", write ONLY about business, startups, economy, or companies.
-- If Category is "Evolutionary Biology", write ONLY about biological evolution, natural selection, genetics, or speciation.
+STRICT TOPIC & CONCRETENESS REQUIREMENT:
+1. TOPIC: The educational fact MUST be 100% strictly about the category: "{category_en}" ({category_pl}).
+2. MAXIMUM CONCRETENESS & REAL-WORLD SPECIFICITY:
+   - ABSOLUTELY NO vague corporate fluff or generic statements (e.g. NEVER write generic lines like "Poland's economic growth has been remarkable", "allowed companies to reach new markets", "strong performance", "important for the future").
+   - MUST include REAL, SPECIFIC PROPER NOUNS (company names, brand names, famous pioneers, scientists, inventions, products, services, or places).
+   - MUST include SPECIFIC CONCRETE DATA (exact numbers, percentages, dollar/euro/złoty values, years/dates, counts, or technical specs).
+   - For "Polish Business & Economy": Focus on real Polish giants, unicorns, and exports with real numbers! Examples: InPost (24,000+ Paczkomaty parcel lockers in UK/France), CD Projekt Red ($3.5B+ Witcher & Cyberpunk 2077 sales), Allegro (e-commerce marketplace), Orlen (refineries & energy), Solaris Bus (23,000+ electric buses in 20+ EU cities), Wilk Elektronik / GoodRAM (memory modules made in Łaziska Górne), DocPlanner / ZnanyLekarz (doctor booking platform), ElevenLabs (AI voice tech), Techland (Dying Light games), Żabka (autonomous stores), Maspex.
+   - For other categories: Name specific species, discovery years, chemical formulas, space telescopes, physical laws, or historical dates!
 
 User's vocabulary list to practice: {words_str}
-Instructions: Pick 2-4 target words from the list above that naturally fit into this topic about "{category_en}". If a word does not fit, skip it and pick words that DO fit. Mark every used target word with **double asterisks** like **word**.
+Instructions: Pick 2-4 target words from the list above that naturally fit into this specific fact about "{category_en}". If a word does not fit, skip it and pick words that DO fit. Mark every used target word with **double asterisks** like **word**.
 {seen_instruction}
 
 Return ONLY valid JSON (no markdown wrapper, no extra text):
 {{
   "title": "Specific topic title strictly within {category_en} (4-6 English words)",
-  "fact": "3-4 informative, fascinating sentences (80-120 words) strictly about {category_en}. Use 2-4 target words naturally, marked with **word**.",
-  "fact_pl": "Kompletne, dokładne i naturalne tłumaczenie całego powyższego akapitu na język polski.",
+  "fact": "3-4 informative, highly specific, data-rich sentences (80-120 words) strictly about {category_en}. Must contain real names, numbers/data, and specific goods/services. Use 2-4 target words naturally, marked with **word**.",
+  "fact_pl": "Kompletne, dokładne i naturalne tłumaczenie całego powyższego akapitu na język polski (z zachowaniem nazewnictwa i konkretnych danych).",
   "used_words": [
     {{"word": "used_word", "translation": "polskie tłumaczenie", "context": "short phrase using it"}}
   ],
@@ -336,31 +337,31 @@ Rules:
 
     fallback_topics = {
         "Primitive Humans & Archaeology": {
-            "title": f"Early Human Innovations: {w1['word'].title()} and Survival",
-            "fact": f"Early humans learned to **{w1['word']}** essential methods for making stone axes and controlling fire. Over thousands of years, prehistoric communities began to **{w2['word']}** unique cultural traditions and hunting strategies. Archaeological discoveries show that our ancestors adapted remarkably to changing ice age environments.",
-            "fact_pl": f"Wcześni ludzie nauczyli się odkrywać/stosować kluczowe metody wytwarzania kamiennych siekier i kontrolowania ognia. Przez tysiące lat prehistoryczne społeczności zaczęły rozwijać unikalne tradycje kulturowe i strategie łowieckie. Odkrycia archeologiczne pokazują, że nasi przodkowie niezwykle dobrze przystosowali się do zmieniających się środowisk epoki lodowcowej.",
+            "title": f"Göbekli Tepe: Prehistoric Stone Architecture",
+            "fact": f"Over 11,500 years ago, hunter-gatherers at Göbekli Tepe constructed massive 16-ton carved stone pillars before the invention of agriculture. Archaeologists **{w1['word']}** evidence showing prehistoric communities possessed complex social structures. These early humans shared toolmaking techniques to **{w2['word']}** survival strategies during the Ice Age.",
+            "fact_pl": f"Ponad 11 500 lat temu zbieracze-łowcy w Göbekli Tepe wznieśli ogromne 16-tonowe rzeźbione kamienne filary jeszcze przed wynalezieniem rolnictwa. Archeolodzy odkryli dowody pokazujące, że prehistoryczne społeczności posiadały złożone struktury społeczne. Ci pierwsi ludzie dzielili się technikami narzędziowymi, aby rozwijać strategie przetrwania w epoce lodowcowej.",
             "used_words": [
-                {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"learned to {w1['word']}"},
-                {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"began to {w2['word']}"}
+                {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"archaeologists {w1['word']}"},
+                {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"strategies to {w2['word']}"}
             ],
             "questions": [
-                {"statement": "Early humans controlled fire and crafted stone axes.", "statement_pl": "Wcześni ludzie kontrolowali ogień i wytwarzali kamienne siekiery.", "answer": True, "explanation": "Tekst wskazuje na kontrolowanie ognia i siekiery kamienne."},
-                {"statement": "Prehistoric communities never adapted to ice age conditions.", "statement_pl": "Prehistoryczne społeczności nigdy nie przystosowały się do warunków epoki lodowcowej.", "answer": False, "explanation": "Tekst wyraźnie mówi, że nasi przodkowie niezwykle dobrze się przystosowali."},
-                {"statement": "Archaeology helps us understand ancient human survival.", "statement_pl": "Archeologia pomaga nam zrozumieć przetrwanie dawnych ludzi.", "answer": True, "explanation": "Odkrycia archeologiczne pokazują rozwój dawnych społeczności."}
+                {"statement": "Göbekli Tepe stone pillars were built over 11,500 years ago.", "statement_pl": "Kamienne filary w Göbekli Tepe wybudowano ponad 11 500 lat temu.", "answer": True, "explanation": "Tekst podaje dokładnie tę datę."},
+                {"statement": "Göbekli Tepe was built by 21st-century modern factory workers.", "statement_pl": "Göbekli Tepe wybudowali XXI-wieczni robotnicy fabryczni.", "answer": False, "explanation": "Strukturę stworzyli prehistoryczni zbieracze-łowcy."},
+                {"statement": "Stone pillars at the site weigh up to 16 tons.", "statement_pl": "Kamienne filary na stanowisku ważą do 16 ton.", "answer": True, "explanation": "Tekst wspomina o 16-tonowych filarach."}
             ]
         },
         "Polish Business & Economy": {
-            "title": f"Modern Polish Economy: Innovation and Industry",
-            "fact": f"Poland has built a dynamic economy where tech startups **{w1['word']}** new international markets. Companies continuously strive to **{w2['word']}** advanced digital solutions and export high-quality goods across Europe. Economic reports highlight strong growth in technology and manufacturing sectors.",
-            "fact_pl": f"Polska zbudowała dynamiczną gospodarkę, w której firmy technologiczne zdobywają nowe rynki międzynarodowe. Przedsiębiorstwa stale rozwijają zaawansowane rozwiązania cyfrowe i eksportują towary wysokiej jakości w całej Europie. Raporty gospodarcze podkreślają silny wzrost w sektorze technologicznym i produkcyjnym.",
+            "title": "InPost & CD Projekt: Polish Global Success",
+            "fact": f"Polish logistics leader InPost operates over 24,000 automated parcel lockers across Europe, revolutionizing e-commerce delivery. Meanwhile, CD Projekt Red **{w1['word']}** international acclaim by exporting *The Witcher 3*, generating over $500 million in global sales. Polish innovators continue to **{w2['word']}** high-tech services and export goods worldwide.",
+            "fact_pl": f"Polski lider logistyczny InPost obsługuje ponad 24 000 paczkomatów w całej Europie, rewolucjonizując dostawy e-commerce. Tymczasem studio CD Projekt Red zdobyło międzynarodowy poklask, eksportując Wiedźmina 3 i generując ponad 500 milionów dolarów przychodu. Polscy innowatorzy stale rozwijają zaawansowane usługi i eksportują towary na cały świat.",
             "used_words": [
-                {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"startups {w1['word']}"},
-                {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"strive to {w2['word']}"}
+                {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"CD Projekt {w1['word']}"},
+                {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"continue to {w2['word']}"}
             ],
             "questions": [
-                {"statement": "Poland exports high-quality goods across European markets.", "statement_pl": "Polska eksportuje towary wysokiej jakości na rynki europejskie.", "answer": True, "explanation": "Tekst wprost to potwierdza."},
-                {"statement": "Technology sectors in Poland have stopped growing.", "statement_pl": "Sektor technologiczny w Polsce przestał się rozwijać.", "answer": False, "explanation": "Raporty gospodarcze podkreślają silny wzrost w technologii."},
-                {"statement": "Polish startups focus on digital innovation.", "statement_pl": "Polskie startupy skupiają się na innowacjach cyfrowych.", "answer": True, "explanation": "Przedsiębiorstwa tworzą zaawansowane rozwiązania cyfrowe."}
+                {"statement": "InPost operates over 24,000 parcel lockers across Europe.", "statement_pl": "InPost obsługuje ponad 24 000 paczkomatów w Europie.", "answer": True, "explanation": "Tekst potwierdza sieć ponad 24 000 paczkomatów."},
+                {"statement": "CD Projekt Red manufactures traditional wooden furniture.", "statement_pl": "CD Projekt Red produkuje tradycyjne meble drewniane.", "answer": False, "explanation": "CD Projekt Red to producent i eksporter gier wideo."},
+                {"statement": "The Witcher 3 generated over $500 million in revenue.", "statement_pl": "Wiedźmin 3 wygenerował ponad 500 milionów dolarów przychodu.", answer: True, "explanation": "Tekst podaje przychód ze sprzedaży gry."}
             ]
         }
     }

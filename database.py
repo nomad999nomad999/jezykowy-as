@@ -850,6 +850,28 @@ def get_daily_quests(user_id=1):
                 "SELECT * FROM daily_quests WHERE user_id=? AND quest_date=? ORDER BY id",
                 (user_id, today)
             ).fetchall()
+        
+        # Sync speed_round points quests with today's actual session scores
+        for r in rows:
+            if r["quest_type"] == "speed_round" and r["target"] > 1:
+                pts_row = conn.execute(
+                    "SELECT SUM(correct) as pts FROM sessions WHERE user_id=? AND exercise_type='speed_round' AND DATE(session_date)=?",
+                    (user_id, today)
+                ).fetchone()
+                total_pts = (pts_row["pts"] or 0) if pts_row else 0
+                if total_pts > 0:
+                    new_prog = min(total_pts, r["target"])
+                    newly_done = 1 if new_prog >= r["target"] else 0
+                    if new_prog != r["progress"] or (newly_done and not r["completed"]):
+                        conn.execute(
+                            "UPDATE daily_quests SET progress=?, completed=? WHERE id=?",
+                            (new_prog, newly_done if newly_done else r["completed"], r["id"])
+                        )
+        
+        rows = conn.execute(
+            "SELECT * FROM daily_quests WHERE user_id=? AND quest_date=? ORDER BY id",
+            (user_id, today)
+        ).fetchall()
         return [dict(r) for r in rows]
 
 def update_quest_progress(user_id, quest_type, amount=1):

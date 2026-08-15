@@ -51,7 +51,7 @@ const Exercise = {
     if (this.type && this.total > 0) {
       const dur = Math.round((Date.now() - this.startTime) / 1000);
       // Pass accumulated xpEarned for SRS (earned per card), so sessions table records correct XP
-      const sessionPayload = { type: this.type, words: this.total, correct: this.score, duration: dur };
+      const sessionPayload = { type: this.type, words: this.total, correct: this.score, score: this.score, duration: dur };
       if (this.xpEarned > 0) sessionPayload.xp_earned = this.xpEarned;
       const res = await API.post('/api/session', sessionPayload);
       if (res.xp_earned) XP.show(res.xp_earned);
