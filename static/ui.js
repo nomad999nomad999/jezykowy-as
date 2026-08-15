@@ -527,11 +527,27 @@ const Classify = {
 /* ── Lists ── */
 const Lists = {
   currentStatus: 'NIE_ZNAM',
-  async load() { this.currentStatus = 'NIE_ZNAM'; await this.fetchAndRender(this.currentStatus); await this.loadLearnedCount(); },
+  async load() { this.currentStatus = 'NIE_ZNAM'; await this.fetchAndRender(this.currentStatus); await this.loadCounts(); },
+  async loadCounts() {
+    try {
+      const [stats, learned] = await Promise.all([
+        API.get('/api/stats'),
+        API.get('/api/words/learned')
+      ]);
+      const elNie = document.getElementById('countNieZnam');
+      const elTroche = document.getElementById('countTroche');
+      const elZnam = document.getElementById('countZnam');
+      const elLearned = document.getElementById('learnedCount');
+      if (elNie) elNie.textContent = stats ? (stats.nie_znam ?? 0) : 0;
+      if (elTroche) elTroche.textContent = stats ? (stats.troche ?? 0) : 0;
+      if (elZnam) elZnam.textContent = stats ? (stats.znam ?? 0) : 0;
+      if (elLearned) elLearned.textContent = learned ? learned.length : 0;
+    } catch(e) {
+      console.warn("Failed to load list counts:", e);
+    }
+  },
   async loadLearnedCount() {
-    const words = await API.get('/api/words/learned');
-    const el = document.getElementById('learnedCount');
-    if (el) el.textContent = words.length;
+    await this.loadCounts();
   },
   switch(btn, status) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -539,6 +555,7 @@ const Lists = {
     this.currentStatus = status;
     document.getElementById('searchInput').value = '';
     this.fetchAndRender(status);
+    this.loadCounts();
   },
   async showLearned(btn) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -547,6 +564,7 @@ const Lists = {
     document.getElementById('searchInput').value = '';
     const words = await API.get('/api/words/learned');
     this.renderLearnedList(words);
+    this.loadCounts();
   },
   async fetchAndRender(status) {
     const words = await API.get('/api/words?status=' + status);

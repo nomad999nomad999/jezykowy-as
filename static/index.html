@@ -295,9 +295,9 @@
     <!-- lists -->
     <section id="page-lists" class="page">
       <div class="tabs" style="flex-wrap:wrap;gap:4px">
-        <button class="tab active" onclick="Lists.switch(this,'NIE_ZNAM')">❌ Nie znam</button>
-        <button class="tab" onclick="Lists.switch(this,'TROCHE')">⚠️ Trochę</button>
-        <button class="tab" onclick="Lists.switch(this,'ZNAM')">✅ Znam</button>
+        <button class="tab active" onclick="Lists.switch(this,'NIE_ZNAM')">❌ Nie znam <span id="countNieZnam" class="learned-badge badge-nie">…</span></button>
+        <button class="tab" onclick="Lists.switch(this,'TROCHE')">⚠️ Trochę <span id="countTroche" class="learned-badge badge-troche">…</span></button>
+        <button class="tab" onclick="Lists.switch(this,'ZNAM')">✅ Znam <span id="countZnam" class="learned-badge badge-znam">…</span></button>
         <button class="tab tab-learned" id="tabLearned" onclick="Lists.showLearned(this)">🎓 Poznałem <span id="learnedCount" class="learned-badge">…</span></button>
       </div>
       <div class="search-wrap" style="display:flex;gap:8px;align-items:center"><input id="searchInput" class="search-input" type="text" placeholder="🔍 Szukaj słowa…" oninput="Lists.search(this.value)" style="flex:1"><button class="btn btn-outline" onclick="Lists.exportPDF()" title="Wygeneruj raport PDF" style="width:auto;padding:8px 12px;white-space:nowrap;font-size:13px;background:rgba(99,102,241,0.15);border-color:#6366f1;color:#818cf8;font-weight:700">📄 PDF</button></div>

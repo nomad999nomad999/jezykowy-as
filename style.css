@@ -255,6 +255,10 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 .tab-learned { background: linear-gradient(135deg, #065f46, #1e3a5f) !important; color: #6ee7b7 !important; border-color: #059669 !important; }
 .tab-learned.active { background: linear-gradient(135deg, #059669, #2563eb) !important; color: #fff !important; }
 .learned-badge { display: inline-block; background: rgba(255,255,255,0.2); color: inherit; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 20px; margin-left: 4px; }
+.badge-nie { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.35); }
+.badge-troche { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35); }
+.badge-znam { background: rgba(34, 197, 94, 0.2); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.35); }
+.tab.active .learned-badge { background: rgba(255, 255, 255, 0.25) !important; color: #ffffff !important; border-color: rgba(255, 255, 255, 0.4) !important; }
 .learned-item { border-left: 3px solid #059669 !important; }
 .wi-meta { font-size: 10px; color: var(--text3); margin-top: 2px; }
 .learned-tag { font-size: 12px; margin-left: 4px; }
