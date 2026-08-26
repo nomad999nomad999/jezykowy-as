@@ -1509,7 +1509,7 @@ const DB = {
 
         const countClassified = await this.db.words.where({ user_id: userId }).count();
         let milestone = null;
-        if ([50, 100, 150, 200, 250, 300, 400, 500, 750, 1000].includes(countClassified)) {
+        if (countClassified > 0 && countClassified % 50 === 0) {
           milestone = { count: countClassified };
         }
 

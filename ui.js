@@ -1,5 +1,5 @@
 /* ── UI ── */
-const UI = {
+var UI = window.UI || {
   goTo(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -820,7 +820,7 @@ function showMilestone(count, bonus) {
 }
 
 
-const CLASSIFY_MILESTONES = [
+var CLASSIFY_MILESTONES = [
   { words: 50,   rank: 'Początkujący Start', stage: '🌱', cefr: 'A1', power: 'Pierwsze 50 najczęstszych słów! Potrafisz witać się i rozumieć podstawy.' },
   { words: 100,  rank: 'Odkrywca',           stage: '🟩', cefr: 'A1', power: 'Rozpoznajesz strukturę zdania. Przetrwasz na lotnisku, zamówisz kawę i zapytasz o drogę.' },
   { words: 150,  rank: 'Odważny Samouk',     stage: '🟩', cefr: 'A1+', power: 'Rozumiesz proste pytania, potrafisz odpowiedzieć na podstawowe zwroty.' },

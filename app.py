@@ -78,8 +78,13 @@ def static_files(filename):
     """Serwuje pliki statyczne z nagłówkami no-cache dla JS/CSS."""
     if filename.startswith("api/"):
         return jsonify({"error": "Endpoint not found"}), 404
+    static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "static"))
+    file_path = os.path.join(static_dir, filename)
+    if not os.path.exists(file_path):
+        return jsonify({"error": f"File {filename} not found"}), 404
+
     from flask import make_response
-    response = make_response(send_from_directory("static", filename))
+    response = make_response(send_from_directory(static_dir, filename))
     # Wyłącz cache dla plików JS/CSS — zawsze świeże
     if filename.endswith(('.js', '.css', '.html')):
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'

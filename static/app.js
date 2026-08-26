@@ -27,8 +27,8 @@ async function startApp() {
   }
 
   // Load non-blocking
-  try { Stats.load(); } catch(e) {}
-  try { Home.load(stats); } catch(e) { console.warn('Home.load error:', e); }
+  try { if (typeof Stats !== 'undefined' && Stats.load) Stats.load(); } catch(e) {}
+  try { if (typeof Home !== 'undefined' && Home.load) Home.load(stats); } catch(e) { console.warn('Home.load error:', e); }
 
   // Navigate to home
   UI.goTo('home');

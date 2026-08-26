@@ -165,14 +165,24 @@ Object.assign(Exercise, {
     // Submit review result
     API.post('/api/review_result', { word_id: wordId, correct: ok });
 
-    // Keep the Continue button displayed
-    const nextBtn = document.getElementById('sqNextBtn');
-    if (nextBtn) nextBtn.style.display = 'block';
-
-    const delay = ok ? 1400 : 3500;
-    this.sqTimeout = setTimeout(() => {
-      this.sqNext();
-    }, delay);
+    if (ok) {
+      // Poprawna odpowiedź — przejdź automatycznie po krótkiej chwili
+      const nextBtn = document.getElementById('sqNextBtn');
+      if (nextBtn) nextBtn.style.display = 'block';
+      this.sqTimeout = setTimeout(() => {
+        this.sqNext();
+      }, 1400);
+    } else {
+      // Błędna odpowiedź — ZATRZYMAJ quiz, czekaj na kliknięcie "Dalej ➔"
+      // Upewnij się, że nie ma żadnego aktywnego timera
+      if (this.sqTimeout) { clearTimeout(this.sqTimeout); this.sqTimeout = null; }
+      const nextBtn = document.getElementById('sqNextBtn');
+      if (nextBtn) {
+        nextBtn.style.display = 'block';
+        nextBtn.textContent = 'Dalej ➔';
+        nextBtn.style.background = 'linear-gradient(135deg, #3b82f6, #8b5cf6)';
+      }
+    }
   },
 
   async sqReclassify(wordId, status, btn) {
