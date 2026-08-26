@@ -178,7 +178,8 @@ var Home = window.Home || {
         const badge = document.getElementById('homeQuestsBadge');
         if (badge) badge.textContent = `${done}/${quests.length} ukończone`;
         questsEl.innerHTML = quests.map(q => {
-          const pct = Math.min(100, Math.round(q.progress / q.target * 100));
+          const rawPct = Math.min(100, Math.round(q.progress / q.target * 100));
+          const fillPct = Math.min(100, Math.max(q.progress > 0 ? 3 : 0, rawPct));
           const isDone = q.completed;
           return `<div class="quest-card ${isDone ? 'quest-done' : ''}" onclick="Home.handleQuestClick('${q.quest_type}')" style="cursor: pointer;" title="Kliknij, aby przejść do zadania">
             <div class="quest-top">
@@ -190,7 +191,7 @@ var Home = window.Home || {
               <div class="quest-xp">${isDone ? '✅' : ''}+${q.xp_reward} XP</div>
             </div>
             <div class="quest-bar-wrap">
-              <div class="quest-bar-fill" style="width:${pct}%"></div>
+              <div class="quest-bar-fill" style="width:${fillPct}%"></div>
             </div>
           </div>`;
         }).join('');
@@ -205,19 +206,20 @@ var Home = window.Home || {
       if (wRes && wRes.challenges && wEl) {
         if (wBadge) wBadge.textContent = `${wRes.days_left} d. do resetu`;
         wEl.innerHTML = wRes.challenges.map(c => {
-          const pct = Math.min(100, Math.round((c.progress / c.target) * 100));
+          const rawPct = Math.min(100, Math.round((c.progress / c.target) * 100));
+          const fillPct = Math.min(100, Math.max(c.progress > 0 ? 3 : 0, rawPct));
           const isDone = c.completed;
-          return `<div class="quest-card ${isDone ? 'quest-done' : ''}" style="border-left:3px solid var(--amber);margin-bottom:8px">
+          return `<div class="quest-card ${isDone ? 'quest-done' : ''}" style="border-left:3px solid #f59e0b;margin-bottom:8px">
             <div class="quest-top">
               <span class="quest-icon">${c.icon || '🏅'}</span>
               <div class="quest-info">
                 <div class="quest-desc" style="font-weight:600">${c.description}</div>
                 <div class="quest-prog-text">${c.progress}/${c.target}</div>
               </div>
-              <div class="quest-xp" style="color:var(--amber)">${isDone ? '✅ ' : ''}+${c.xp_reward} XP</div>
+              <div class="quest-xp" style="color:#f59e0b">${isDone ? '✅ ' : ''}+${c.xp_reward} XP</div>
             </div>
             <div class="quest-bar-wrap">
-              <div class="quest-bar-fill" style="width:${pct}%;background:linear-gradient(90deg, var(--amber), #a855f7)"></div>
+              <div class="quest-bar-fill" style="width:${fillPct}%;background:linear-gradient(90deg, #f59e0b, #a855f7)"></div>
             </div>
           </div>`;
         }).join('');
