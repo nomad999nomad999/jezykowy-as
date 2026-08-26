@@ -330,6 +330,11 @@ const Classify = {
       this.batch = await API.get('/api/classify/batch?n=15');
       this.idx = 0;
       this.batchStats = { ZNAM: 0, TROCHE: 0, NIE_ZNAM: 0, skipped: 0 };
+      API.get('/api/stats').then(s => {
+        const tot = (s.znam || 0) + (s.troche || 0) + (s.nie_znam || 0);
+        const lbl = document.getElementById('classifyTotalCountLabel');
+        if (lbl) lbl.textContent = tot;
+      }).catch(() => {});
       this.render();
     } catch(e) {
       console.error("Failed to load classify batch:", e);
@@ -428,6 +433,12 @@ const Classify = {
       this.batchStats = { ZNAM: 0, TROCHE: 0, NIE_ZNAM: 0, skipped: 0 };
     }
     this.batchStats[status]++;
+
+    const lbl = document.getElementById('classifyTotalCountLabel');
+    if (lbl) {
+      let cur = parseInt(lbl.textContent) || 0;
+      lbl.textContent = cur + 1;
+    }
 
     // Fire API call in background
     API.post('/api/classify/word', { word, translation, status }).then(res => {
@@ -809,25 +820,125 @@ function showMilestone(count, bonus) {
 }
 
 
-function showClassifyMilestone(count) {
-  const presets = {
-    50:   ['🎉','Świetna robota!',`Adi jest pod wrażeniem — sklasyfikowałeś ${count} najpopularniejszych słów!`],
-    100:  ['🔥','Niesamowite!',`${count} słów COCA za tobą — angielski rośnie w siłę!`],
-    150:  ['⭐','150 słów!',`Znasz top ${count} najczęstszych słów po angielsku!`],
-    200:  ['💪','200 słów!','Adi jest z Ciebie dumny — jesteś w połowie drogi do top 500!'],
-    250:  ['🚀','Ćwierć tysiąca!','Prawie połowa top 500 najczęstszych słów!'],
-    300:  ['🏅','TOP 300!','Znasz top 300 najczęstszych angielskich słów!'],
-    400:  ['🎯','400 słów!','Jeszcze trochę do legendarnego top 500!'],
-    500:  ['🏆','TOP 500!','Sklasyfikowałeś 500 najpopularniejszych słów — doskonały wynik!'],
-    750:  ['👑','750 słów!','Adi obserwuje — zaawansowany poziom osiągnięty!'],
-    1000: ['🎓','1000 słów!','Adi pyta: Gotowy na B2? Tysiąc słów COCA — cel w zasięgu ręki!'],
-  };
-  const [emoji, title, sub] = presets[count] || ['🎉',`${count} słów!`,`Adi śledzi Twój postęp — ${count} najpopularniejszych słów COCA!`];
-  const el = document.createElement('div');
-  el.className = 'classify-milestone-popup';
-  el.innerHTML = `<div style="font-size:42px;margin-bottom:8px">${emoji}</div><div class="cm-title">${title}</div><div class="cm-sub">${sub}</div><div class="cm-adi">— Adi 🃏</div>`;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 5500);
+const CLASSIFY_MILESTONES = [
+  { words: 50,   rank: 'Początkujący Start', stage: '🌱', cefr: 'A1', power: 'Pierwsze 50 najczęstszych słów! Potrafisz witać się i rozumieć podstawy.' },
+  { words: 100,  rank: 'Odkrywca',           stage: '🟩', cefr: 'A1', power: 'Rozpoznajesz strukturę zdania. Przetrwasz na lotnisku, zamówisz kawę i zapytasz o drogę.' },
+  { words: 150,  rank: 'Odważny Samouk',     stage: '🟩', cefr: 'A1+', power: 'Rozumiesz proste pytania, potrafisz odpowiedzieć na podstawowe zwroty.' },
+  { words: 200,  rank: 'Stały Bywalec',      stage: '🟩', cefr: 'A1+', power: 'Znasz najczęstsze czasowniki i przymiotniki. Czytasz tablice informacyjne.' },
+  { words: 250,  rank: 'Ćwierć Tysiąca',     stage: '🟩', cefr: 'A2', power: 'Prawie połowa top 500! Swobodniej poruszasz się w codziennych komunikatach.' },
+  { words: 300,  rank: 'Komunikator',         stage: '🟩', cefr: 'A2', power: 'Opisujesz siebie i rodzinę. W obcym kraju nie zginiesz, a sprzedawca zrozumie czego chcesz.' },
+  { words: 400,  rank: 'Operator Pisemny',   stage: '🟩', cefr: 'A2+', power: 'Piszesz proste wiadomości, składasz zamówienia i rozumiesz e-maile.' },
+  { words: 500,  rank: 'Pół Tysiąca',         stage: '🟩', cefr: 'A2+', power: 'Przełomowy kamień milowy! Znasz 500 najpopularniejszych słów w języku angielskim.' },
+  { words: 600,  rank: 'Operator',            stage: '🟩', cefr: 'B1', power: 'Robisz zakupy online, rozumiesz proste instrukcje, rezerwujesz hotel przez telefon.' },
+  { words: 750,  rank: 'Średniozaawansowany',stage: '🟨', cefr: 'B1', power: 'Rozumiesz teksty piosenek, proste wywiady i wypowiedzi w necie.' },
+  { words: 900,  rank: 'Lokalny Bywalec',     stage: '🟨', cefr: 'B1', power: 'Zaczynasz small talk. Potrafisz powiedzieć co robiłeś w weekend i wyrazić emocje.' },
+  { words: 1000, rank: 'Tysiącznik COCA',     stage: '🟨', cefr: 'B1+', power: '85% codziennego języka angielskiego pod Twoją kontrolą!' },
+  { words: 1200, rank: 'Autonomiczny',        stage: '🟨', cefr: 'B1+', power: 'Komunikacyjna niezależność! Znasz 83% słów w codziennych rozmowach.' },
+  { words: 1500, rank: 'Konsument Mediów',    stage: '🟨', cefr: 'B2', power: 'Rozumiesz memy, TikTok, posty na Insta i artykuły na portalach bez słownika.' },
+  { words: 1650, rank: 'Analityk Kontekstu',  stage: '🟦', cefr: 'B2', power: 'Oglądasz zagraniczny YouTube bez napisów. Dobrze wyłapujesz sens zdań.' },
+  { words: 1800, rank: 'Obywatel Świata',     stage: '🟦', cefr: 'B2', power: 'Oglądasz filmy i seriale. Naturalna dyskusja o planach i opiniach.' },
+  { words: 1950, rank: 'Strateg Językowy',    stage: '🟦', cefr: 'B2+', power: 'Przełom B2+! Posiadasz szeroki zasób synonimów i zwrotów konwersacyjnych.' },
+  { words: 2100, rank: 'Biznesmen',           stage: '🟦', cefr: 'B2+', power: 'Piszesz maile w pracy, uczestniczysz w spotkaniach międzynarodowych.' },
+  { words: 2250, rank: 'Ekspert Contentu',    stage: '🟦', cefr: 'C1', power: 'Czytasz biografie, poradniki i artykuły naukowe. Rozumiesz niuanse.' },
+  { words: 2400, rank: 'Krytyk Tekstu',       stage: '🟥', cefr: 'C1', power: 'Czytasz felietony prasowe i eseje. Trafnie wyłapujesz kontekst.' },
+  { words: 2550, rank: 'Pożeracz Książek',    stage: '🟥', cefr: 'C1+', power: 'Czytasz kryminały i powieści w oryginale, oglądasz Netflixa bez słownika.' },
+  { words: 2700, rank: 'Retor & Dyskutant',   stage: '🟥', cefr: 'C1+', power: 'Zawiła ironia, zażarte debaty i obrona własnych poglądów.' },
+  { words: 2850, rank: 'Słowotwórca',         stage: '🟥', cefr: 'C2', power: 'Swobodne operowanie aluzjami, idiomami i humorem słownym.' },
+  { words: 3000, rank: 'Elita COCA',           stage: '👑', cefr: 'C2', power: '98% codziennego języka — pełny sukces komunikacyjny!' }
+];
+
+function showClassifyMilestone(count, forceUserTrigger = false) {
+  const modal = document.getElementById('classifyMilestoneModal');
+  if (!modal) return;
+
+  // Calculate current level
+  let currentLevel = CLASSIFY_MILESTONES[0];
+  for (let i = 0; i < CLASSIFY_MILESTONES.length; i++) {
+    if (count >= CLASSIFY_MILESTONES[i].words) {
+      currentLevel = CLASSIFY_MILESTONES[i];
+    }
+  }
+
+  // Header texts
+  const titleEl = document.getElementById('cmmTitle');
+  const countEl = document.getElementById('cmmCount');
+  const rankEl = document.getElementById('cmmLevelRank');
+  const powerEl = document.getElementById('cmmLevelPower');
+
+  if (titleEl) {
+    titleEl.textContent = forceUserTrigger
+      ? `Twój aktualny postęp w klasyfikacji!`
+      : `Świetna robota! Kolejne 50 słów przeanalizowane!`;
+  }
+  if (countEl) countEl.textContent = count;
+  if (rankEl) rankEl.textContent = `${currentLevel.stage} ${currentLevel.rank} (CEFR ${currentLevel.cefr})`;
+  if (powerEl) powerEl.textContent = currentLevel.power;
+
+  // Build ladder list
+  const ladderEl = document.getElementById('cmmLadderList');
+  if (ladderEl) {
+    ladderEl.innerHTML = CLASSIFY_MILESTONES.map(m => {
+      const isPassed = count >= m.words;
+      const isCurrent = currentLevel.words === m.words;
+      const isLocked = count < m.words && !isCurrent;
+
+      let statusBadge = '';
+      if (isCurrent) {
+        statusBadge = `<span class="cmm-item-badge">👈 TWÓJ OBECNY PRÓG</span>`;
+      } else if (isPassed) {
+        statusBadge = `<span class="cmm-item-badge">✓ ZALICZONE (${m.words} słów)</span>`;
+      } else {
+        const left = m.words - count;
+        statusBadge = `<span class="cmm-item-badge">🔒 Cel: ${m.words} słów (${left} pozostało)</span>`;
+      }
+
+      return `
+        <div class="cmm-ladder-item ${isCurrent ? 'current' : isPassed ? 'passed' : 'locked'}">
+          <div class="cmm-item-hdr">
+            <span class="cmm-item-title">${m.stage} ${m.rank} (CEFR ${m.cefr})</span>
+            ${statusBadge}
+          </div>
+          <div class="cmm-item-desc">${m.power}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Ensure accordion state is closed by default unless user toggles
+  if (ladderEl) ladderEl.classList.add('hidden');
+  const toggleIcon = document.getElementById('cmmToggleIcon');
+  if (toggleIcon) toggleIcon.textContent = '▼ rozwiń';
+
+  modal.classList.remove('hidden');
+}
+
+function toggleMilestoneLadder() {
+  const ladderEl = document.getElementById('cmmLadderList');
+  const toggleIcon = document.getElementById('cmmToggleIcon');
+  if (!ladderEl) return;
+  const isHidden = ladderEl.classList.contains('hidden');
+  if (isHidden) {
+    ladderEl.classList.remove('hidden');
+    if (toggleIcon) toggleIcon.textContent = '▲ zwiń';
+  } else {
+    ladderEl.classList.add('hidden');
+    if (toggleIcon) toggleIcon.textContent = '▼ rozwiń';
+  }
+}
+
+function closeClassifyMilestoneModal() {
+  const modal = document.getElementById('classifyMilestoneModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function openClassifyMilestoneModalFromUser() {
+  try {
+    const stats = await API.get('/api/stats');
+    const count = (stats.znam || 0) + (stats.troche || 0) + (stats.nie_znam || 0);
+    showClassifyMilestone(count, true);
+  } catch(e) {
+    showClassifyMilestone(50, true);
+  }
 }
 
 function showQuestComplete(q) {
@@ -860,3 +971,8 @@ function showBadgeEarned(badge) {
   setTimeout(() => el.classList.add('bep-show'), 10);
   setTimeout(() => { el.classList.remove('bep-show'); setTimeout(() => el.remove(), 500); }, 5000);
 }
+
+window.showClassifyMilestone = showClassifyMilestone;
+window.toggleMilestoneLadder = toggleMilestoneLadder;
+window.closeClassifyMilestoneModal = closeClassifyMilestoneModal;
+window.openClassifyMilestoneModalFromUser = openClassifyMilestoneModalFromUser;

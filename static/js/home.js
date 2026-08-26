@@ -433,6 +433,14 @@ const Home = {
     if (tog) tog.textContent = this._levelsOpen ? '▲ zwiń' : '▼ rozwiń';
   },
 
+  openSuperpowerModal() {
+    openClassifyMilestoneModalFromUser();
+  },
+
+  closeSuperpowerModal() {
+    closeClassifyMilestoneModal();
+  },
+
   /* ── TUTORIAL ── */
   showTutorial() {
     const ov = document.getElementById('tutorialOverlay');
@@ -502,3 +510,6 @@ const Home = {
     if (ov) { ov.style.opacity = '0'; setTimeout(() => ov.classList.add('hidden'), 300); }
   },
 };
+
+window.Home = Home;
+window.COCA_LEVELS = COCA_LEVELS;

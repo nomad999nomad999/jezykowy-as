@@ -281,6 +281,10 @@
 
     <!-- classify -->
     <section id="page-classify" class="page">
+      <div class="classify-milestone-bar" onclick="openClassifyMilestoneModalFromUser()" style="cursor:pointer">
+        <span>🏆 Postęp COCA: <strong id="classifyTotalCountLabel">0</strong> słów przeanalizowanych</span>
+        <span style="color:var(--accent);font-weight:700;font-size:12px">Drabina poziomów 🔍</span>
+      </div>
       <div id="classifyProgress" class="progress-bar-wrap"><div id="classifyProgressBar" class="progress-bar-fill"></div></div>
       <div id="classifyInfo" class="classify-info"></div>
       <div id="classifyCards" class="classify-cards"></div>
@@ -614,6 +618,45 @@
       Każdy próg (kamień milowy) to realny wzrost Twoich umiejętności komunikacyjnych:
     </p>
     <div class="superpowers-scheme-list" id="superpowersSchemeList"></div>
+  </div>
+</div>
+
+<!-- CLASSIFY MILESTONE MODAL -->
+<div id="classifyMilestoneModal" class="modal hidden">
+  <div class="modal-header">
+    <button class="modal-close" onclick="closeClassifyMilestoneModal()">✕</button>
+    <h2 class="modal-title">🎉 Kamień Milowy Osiągnięty!</h2>
+  </div>
+  <div class="modal-body" style="padding-top:10px; text-align:center">
+    <div id="cmmEmoji" style="font-size:48px; margin-bottom:8px">🎉</div>
+    <h3 id="cmmTitle" style="font-size:18px; font-weight:800; color:var(--text1); margin-bottom:6px">
+      Świetna robota! Kolejne 50 słów przeanalizowane!
+    </h3>
+    <p id="cmmSub" style="font-size:14px; color:var(--text2); margin-bottom:14px">
+      Do tej pory przeanalizowałeś już <strong id="cmmCount" style="color:var(--accent); font-weight:900">0</strong> słów.
+    </p>
+
+    <!-- Current Level Box -->
+    <div class="cmm-level-card">
+      <div class="cmm-level-label">TWÓJ OBECNY POZIOM</div>
+      <div id="cmmLevelRank" class="cmm-level-rank">🟩 Odkrywca</div>
+      <div id="cmmLevelPower" class="cmm-level-power">Rozpoznajesz strukturę zdania i przetrwasz na lotnisku.</div>
+    </div>
+
+    <!-- Accordion toggle button -->
+    <button id="cmmToggleLadderBtn" class="btn btn-outline cmm-ladder-toggle-btn" onclick="toggleMilestoneLadder()">
+      <span>🏆 Lista kamieni milowych COCA</span>
+      <span id="cmmToggleIcon">▼ rozwiń</span>
+    </button>
+
+    <!-- Expandable Ladder List -->
+    <div id="cmmLadderList" class="cmm-ladder-list hidden">
+      <!-- Generated dynamically by JS -->
+    </div>
+
+    <button class="btn btn-primary" style="margin-top:18px; width:100%; font-size:15px; padding:12px; border-radius:12px; background:linear-gradient(135deg, #10b981, #06b6d4);" onclick="closeClassifyMilestoneModal()">
+      Super, lecimy dalej! 🚀
+    </button>
   </div>
 </div>
 
