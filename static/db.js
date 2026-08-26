@@ -1507,6 +1507,10 @@ const DB = {
         const uFinal = await this.db.users.get(userId);
         const finalXp = uFinal ? uFinal.xp : resXp.xp;
 
+        // Aktualizuj wyzwania tygodniowe
+        await this.updateWeeklyChallengeProgress(userId, 'classify_weekly', 1);
+        await this.updateWeeklyChallengeProgress(userId, 'xp_weekly', 2);
+
         const countClassified = await this.db.words.where({ user_id: userId }).count();
         let milestone = null;
         if (countClassified > 0 && countClassified % 50 === 0) {
@@ -1708,6 +1712,12 @@ const DB = {
         const bEarned = await this.checkAndAwardBadges(userId, correct, words, type);
         const uFinal = await this.db.users.get(userId);
         const finalXp = uFinal ? uFinal.xp : resXp.xp;
+
+        // Aktualizuj wyzwania tygodniowe
+        await this.updateWeeklyChallengeProgress(userId, 'session_weekly', 1);
+        if (xpEarned > 0) {
+          await this.updateWeeklyChallengeProgress(userId, 'xp_weekly', xpEarned);
+        }
 
         return {
           ok: true,

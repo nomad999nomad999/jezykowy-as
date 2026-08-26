@@ -918,6 +918,89 @@ def update_quest_progress(user_id, quest_type, amount=1):
     return completed_now
 
 
+# ─── WEEKLY CHALLENGES ────────────────────────────────────────────────────────
+
+def _get_week_key():
+    """Zwraca klucz bieżącego tygodnia wg ISO (np. '2026-W35')."""
+    today = date.today()
+    iso = today.isocalendar()
+    return f"{iso[0]}-W{str(iso[1]).zfill(2)}"
+
+def _days_until_monday():
+    """Ile dni pozostało do końca tygodnia (do niedzieli włącznie)."""
+    wd = date.today().weekday()  # 0=Mon, 6=Sun
+    return 6 - wd
+
+def _ensure_weekly_table(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS weekly_challenges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        week_key TEXT NOT NULL,
+        quest_type TEXT NOT NULL,
+        description TEXT,
+        icon TEXT DEFAULT '🏅',
+        target INTEGER NOT NULL,
+        progress INTEGER DEFAULT 0,
+        completed INTEGER DEFAULT 0,
+        xp_reward INTEGER DEFAULT 0
+    )""")
+
+def get_weekly_challenges(user_id=1):
+    """Zwraca wyzwania tygodniowe. Tworzy jeśli nie istnieją dla tego tygodnia."""
+    week_key = _get_week_key()
+    default_challenges = [
+        {"quest_type": "classify_weekly", "description": "Sklasyfikuj 60 nowych słów w tym tygodniu",
+         "icon": "🔍", "target": 60,  "xp_reward": 250},
+        {"quest_type": "session_weekly",  "description": "Ukończ 10 dowolnych ćwiczeń w tym tygodniu",
+         "icon": "🏋️", "target": 10,  "xp_reward": 300},
+        {"quest_type": "xp_weekly",       "description": "Zdobądź 600 XP w tym tygodniu",
+         "icon": "⭐", "target": 600, "xp_reward": 450},
+    ]
+    with get_conn() as conn:
+        _ensure_weekly_table(conn)
+        rows = conn.execute(
+            "SELECT * FROM weekly_challenges WHERE user_id=? AND week_key=? ORDER BY id",
+            (user_id, week_key)
+        ).fetchall()
+        if not rows:
+            for c in default_challenges:
+                conn.execute(
+                    "INSERT INTO weekly_challenges (user_id,week_key,quest_type,description,icon,target,progress,completed,xp_reward) VALUES (?,?,?,?,?,?,0,0,?)",
+                    (user_id, week_key, c["quest_type"], c["description"], c["icon"], c["target"], c["xp_reward"])
+                )
+            rows = conn.execute(
+                "SELECT * FROM weekly_challenges WHERE user_id=? AND week_key=? ORDER BY id",
+                (user_id, week_key)
+            ).fetchall()
+        return {
+            "week_key": week_key,
+            "days_left": _days_until_monday(),
+            "challenges": [dict(r) for r in rows]
+        }
+
+def update_weekly_challenge_progress(user_id, quest_type, amount=1):
+    """Aktualizuje postęp wyzwania tygodniowego. Zwraca listę nowo ukończonych."""
+    week_key = _get_week_key()
+    completed_now = []
+    with get_conn() as conn:
+        _ensure_weekly_table(conn)
+        rows = conn.execute(
+            "SELECT * FROM weekly_challenges WHERE user_id=? AND week_key=? AND quest_type=? AND completed=0",
+            (user_id, week_key, quest_type)
+        ).fetchall()
+        for row in rows:
+            new_progress = min(row["progress"] + amount, row["target"])
+            newly_done = new_progress >= row["target"]
+            conn.execute(
+                "UPDATE weekly_challenges SET progress=?, completed=? WHERE id=?",
+                (new_progress, 1 if newly_done else 0, row["id"])
+            )
+            if newly_done:
+                completed_now.append({"desc": row["description"], "xp": row["xp_reward"], "icon": row["icon"]})
+                add_xp(user_id, row["xp_reward"])
+    return completed_now
+
+
 # ─── ACHIEVEMENTS / BADGES ────────────────────────────────────────────────────
 _ALL_BADGES = [
     ("first_step",       "🎉", "Pierwszy krok",       "Sklasyfikuj pierwsze słowo"),

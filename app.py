@@ -247,6 +247,9 @@ def classify_word():
     if total > 0 and total % 50 == 0:
         milestone = {"count": total}
     quests_done = db.update_quest_progress(user["id"], "classify", 1)
+    # Aktualizuj wyzwania tygodniowe
+    db.update_weekly_challenge_progress(user["id"], "classify_weekly", 1)
+    db.update_weekly_challenge_progress(user["id"], "xp_weekly", actual)
     badges_earned = db.check_and_award_badges(user["id"])
     u_curr = db.get_user_by_id(user["id"])
     final_total_xp = u_curr["xp"] if u_curr else xp
@@ -597,6 +600,10 @@ def save_session():
         quests_done += db.update_quest_progress(user["id"], "flashcards", words_cnt)
     badges_earned = db.check_and_award_badges(user["id"],
         session_correct=correct, session_words=words_cnt, session_type=ex_type)
+    # Aktualizuj wyzwania tygodniowe
+    db.update_weekly_challenge_progress(user["id"], "session_weekly", 1)
+    if actual_xp > 0:
+        db.update_weekly_challenge_progress(user["id"], "xp_weekly", actual_xp)
     u_curr = db.get_user_by_id(user["id"])
     final_total_xp = u_curr["xp"] if u_curr else new_xp
     return jsonify({"ok": True, "xp_earned": actual_xp, "total_xp": final_total_xp,
@@ -650,6 +657,12 @@ def get_quests():
     user, err, code = _require_user()
     if err: return err, code
     return jsonify(db.get_daily_quests(user["id"]))
+
+@app.route("/api/weekly_challenges")
+def get_weekly_challenges():
+    user, err, code = _require_user()
+    if err: return err, code
+    return jsonify(db.get_weekly_challenges(user["id"]))
 
 @app.route("/api/achievements")
 def get_achievements():
