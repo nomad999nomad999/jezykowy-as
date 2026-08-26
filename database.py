@@ -113,6 +113,11 @@ def init_db():
             """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_words_rank ON words(user_id, frequency_rank)")
 
+        # Migracja – dodaj statyczne zdanie przykładowe do words jeśli brak
+        for col in ["example_sentence", "example_sentence_pl", "example_sentence_tip"]:
+            if not _col_exists(conn, "words", col):
+                conn.execute(f"ALTER TABLE words ADD COLUMN {col} TEXT DEFAULT NULL")
+
         # Migracja – usuń kolumnę password z users (SQLite nie obsługuje DROP COLUMN wprost)
         if _col_exists(conn, 'users', 'password'):
             conn.executescript("""
@@ -210,7 +215,7 @@ def mark_imported():
     with get_conn() as conn:
         conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('imported','1')")
 
-def add_word(word, translation, status, source="coca", user_id=1):
+def add_word(word, translation, status, source="coca", user_id=1, example_sentence=None, example_sentence_pl=None, example_sentence_tip=None):
     word = word.strip().lower()
     if not word: return
     conn = get_conn()
@@ -220,8 +225,8 @@ def add_word(word, translation, status, source="coca", user_id=1):
         freq_rank = rank_row["frequency_rank"] if rank_row else 9999
         conn.execute("BEGIN")
         conn.execute(
-            "INSERT OR IGNORE INTO words (word,translation,status,source,user_id,frequency_rank) VALUES (?,?,?,?,?,?)",
-            (word, translation, status, source, user_id, freq_rank))
+            "INSERT OR IGNORE INTO words (word,translation,status,source,user_id,frequency_rank,example_sentence,example_sentence_pl,example_sentence_tip) VALUES (?,?,?,?,?,?,?,?,?)",
+            (word, translation, status, source, user_id, freq_rank, example_sentence, example_sentence_pl, example_sentence_tip))
         conn.execute("COMMIT")
     except Exception as e:
         try: conn.execute("ROLLBACK")
@@ -229,6 +234,14 @@ def add_word(word, translation, status, source="coca", user_id=1):
         print(f"[add_word ERROR] {word}: {e}")
     finally:
         conn.close()
+
+def save_word_sentence(word_id, sentence, sentence_pl, tip=None, user_id=1):
+    """Zapisuje statyczne przykładowe zdanie dla słowa."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE words SET example_sentence=?, example_sentence_pl=?, example_sentence_tip=? WHERE id=? AND user_id=?",
+            (sentence, sentence_pl, tip, word_id, user_id)
+        )
 
 def load_coca_words(words_list):
     with get_conn() as conn:
@@ -339,6 +352,7 @@ def get_words_by_status(status, user_id=1):
                    COALESCE(NULLIF(w.translation,''), c.translation, '') AS translation,
                    w.status, w.source, w.user_id,
                    w.added_date, w.last_reviewed, w.review_count, w.correct_count, w.learned_at,
+                   w.example_sentence, w.example_sentence_pl, w.example_sentence_tip,
                    COALESCE(c.frequency_rank, w.frequency_rank, 9999) AS frequency_rank
             FROM words w
             LEFT JOIN coca_words c ON c.word = w.word
@@ -355,6 +369,7 @@ def get_learned_words(user_id=1):
                    COALESCE(NULLIF(w.translation,''), c.translation, '') AS translation,
                    w.status, w.source, w.user_id,
                    w.added_date, w.last_reviewed, w.review_count, w.correct_count, w.learned_at,
+                   w.example_sentence, w.example_sentence_pl, w.example_sentence_tip,
                    COALESCE(c.frequency_rank, w.frequency_rank, 9999) AS frequency_rank
             FROM words w
             LEFT JOIN coca_words c ON c.word = w.word
@@ -400,6 +415,7 @@ def get_all_words(user_id=1, status=None):
         COALESCE(NULLIF(w.translation,''), c.translation, '') AS translation,
         w.status, w.source, w.user_id,
         w.added_date, w.last_reviewed, w.review_count, w.correct_count, w.learned_at,
+        w.example_sentence, w.example_sentence_pl, w.example_sentence_tip,
         COALESCE(c.frequency_rank, w.frequency_rank, 9999) AS frequency_rank
     """
     with get_conn() as conn:
@@ -502,6 +518,7 @@ def get_words_for_review(statuses=("NIE_ZNAM","TROCHE"), limit=20, user_id=1, up
         COALESCE(NULLIF(w.translation,''), c.translation, '') AS translation,
         w.status, w.source, w.user_id,
         w.added_date, w.last_reviewed, w.review_count, w.correct_count, w.learned_at,
+        w.example_sentence, w.example_sentence_pl, w.example_sentence_tip,
         COALESCE(c.frequency_rank, w.frequency_rank, 9999) AS frequency_rank
     """
     ph = ",".join("?" * len(statuses))

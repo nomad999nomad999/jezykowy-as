@@ -27,6 +27,27 @@ Object.assign(Exercise, {
     const rankBadge = w.frequency_rank && w.frequency_rank < 9999
       ? `<span class="fc-rank">#${w.frequency_rank}</span>` : '';
 
+    let staticSentenceHtml = '';
+    if (w.example_sentence) {
+      let sentenceHtml = w.example_sentence;
+      const safeWord = w.word ? w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+      if (safeWord) {
+        const re = new RegExp(`\\b(${safeWord})\\b`, 'gi');
+        sentenceHtml = sentenceHtml.replace(re, '<strong class="sq-highlight-word">$1</strong>');
+      }
+      const safeSentenceForSpeech = w.example_sentence.replace(/'/g, "\\'");
+      staticSentenceHtml = `
+        <div class="sq-static-sentence-box">
+          <div class="sq-sentence-en">
+            <div>💬 ${sentenceHtml}</div>
+            <button class="sq-speak-sentence-btn" title="Odsłuchaj zdanie" onclick="Speech.speak('${safeSentenceForSpeech}'); event.stopPropagation();">🔊 Słuchaj</button>
+          </div>
+          <div class="sq-sentence-pl">🇵🇱 ${w.example_sentence_pl || ''}</div>
+          ${w.example_sentence_tip ? `<div class="sq-sentence-tip">💡 ${w.example_sentence_tip}</div>` : ''}
+        </div>
+      `;
+    }
+
     document.getElementById('modalBody').innerHTML = `
       <p style="text-align:center;color:var(--text2);font-size:13px;margin-bottom:8px">${this.idx+1}/${this.data.length}</p>
       
@@ -37,13 +58,14 @@ Object.assign(Exercise, {
         </div>
         <div class="sq-word-section">
           <div class="sq-word">${w.word}</div>
-          <button class="sq-speak-btn" onclick="Speech.speak('${w.word.replace(/'/g,"\\'")}');">🔊 Odsłuchaj ponownie</button>
+          ${staticSentenceHtml}
+          <button class="sq-speak-btn" onclick="Speech.speak('${w.word.replace(/'/g,"\\'")}');">🔊 Odsłuchaj słówko</button>
         </div>
       </div>
 
       <div class="sq-sentence-container" id="sqSentence-${this.idx}" style="margin:10px 0">
         <button class="btn btn-outline" style="font-size:12px;padding:8px 14px;border-radius:18px;color:#a855f7;border-color:rgba(168,85,247,0.4);background:rgba(168,85,247,0.08);width:100%;cursor:pointer" onclick="Exercise.sqLoadSentence('${w.word.replace(/'/g, "\\'")}', '${(w.translation||'').replace(/'/g, "\\'")}', ${this.idx})">
-          💡 Wygeneruj zdanie przykładowe (AI)
+          💡 Wygeneruj nowe zdanie (AI)
         </button>
       </div>
 

@@ -212,7 +212,24 @@ def classify_word():
     user, err, code = _require_user()
     if err: return err, code
     data = request.json
-    db.add_word(data["word"].strip().lower(), data.get("translation",""), data["status"], "coca", user["id"])
+    word = data["word"].strip().lower()
+    translation = data.get("translation", "")
+    status = data["status"]
+
+    # Generowanie statycznego zdania dla słowa przy dodawaniu do list NIE_ZNAM / TROCHE
+    ex_sent, ex_sent_pl, ex_sent_tip = None, None, None
+    if status in ("NIE_ZNAM", "TROCHE"):
+        try:
+            sentence_obj = gemini.generate_example_sentence(word, translation)
+            if sentence_obj and isinstance(sentence_obj, dict):
+                ex_sent = sentence_obj.get("sentence")
+                ex_sent_pl = sentence_obj.get("sentence_pl")
+                ex_sent_tip = sentence_obj.get("tip")
+        except Exception as e:
+            print(f"[classify_word sentence error] {word}: {e}")
+
+    db.add_word(word, translation, status, "coca", user["id"],
+                example_sentence=ex_sent, example_sentence_pl=ex_sent_pl, example_sentence_tip=ex_sent_tip)
     xp, lvl, actual, mult = db.add_xp(user["id"], 2)
     with db.get_conn() as conn:
         conn.execute(
@@ -270,6 +287,18 @@ def multiple_choice():
     pool = [w["translation"] for w in db.get_words_for_review(("NIE_ZNAM","TROCHE","ZNAM"), 60, user["id"], update_reviewed=False) if w["translation"]]
     result = []
     for w in words:
+        # Jeśli słówko nie ma jeszcze zapisanego statycznego zdania przykładowego, wygeneruj je i zapisz na stałe w bazie
+        if not w.get("example_sentence"):
+            try:
+                sentence_obj = gemini.generate_example_sentence(w["word"], w["translation"])
+                if sentence_obj and isinstance(sentence_obj, dict) and sentence_obj.get("sentence"):
+                    w["example_sentence"] = sentence_obj.get("sentence")
+                    w["example_sentence_pl"] = sentence_obj.get("sentence_pl")
+                    w["example_sentence_tip"] = sentence_obj.get("tip")
+                    db.save_word_sentence(w["id"], w["example_sentence"], w["example_sentence_pl"], w["example_sentence_tip"], user["id"])
+            except Exception as e:
+                print(f"[multiple_choice sentence gen error] {w['word']}: {e}")
+
         wrong = [t for t in pool if t != w["translation"]]
         random.shuffle(wrong)
         opts = [w["translation"]] + wrong[:3]; random.shuffle(opts)
