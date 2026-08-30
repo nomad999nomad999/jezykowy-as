@@ -248,13 +248,14 @@ def classify_word():
         milestone = {"count": total}
     quests_done = db.update_quest_progress(user["id"], "classify", 1)
     # Aktualizuj wyzwania tygodniowe
-    db.update_weekly_challenge_progress(user["id"], "classify_weekly", 1)
-    db.update_weekly_challenge_progress(user["id"], "xp_weekly", actual)
+    w_done1 = db.update_weekly_challenge_progress(user["id"], "classify_weekly", 1)
+    w_done2 = db.update_weekly_challenge_progress(user["id"], "xp_weekly", actual)
+    weekly_done = w_done1 + w_done2
     badges_earned = db.check_and_award_badges(user["id"])
     u_curr = db.get_user_by_id(user["id"])
     final_total_xp = u_curr["xp"] if u_curr else xp
     return jsonify({"ok": True, "xp": actual, "total_xp": final_total_xp, "milestone": milestone,
-                    "quests_done": quests_done, "badges_earned": badges_earned})
+                    "quests_done": quests_done, "weekly_done": weekly_done, "badges_earned": badges_earned})
 
 @app.route("/api/classify/skip", methods=["POST"])
 def skip_word():
@@ -601,14 +602,16 @@ def save_session():
     badges_earned = db.check_and_award_badges(user["id"],
         session_correct=correct, session_words=words_cnt, session_type=ex_type)
     # Aktualizuj wyzwania tygodniowe
-    db.update_weekly_challenge_progress(user["id"], "session_weekly", 1)
+    w_done1 = db.update_weekly_challenge_progress(user["id"], "session_weekly", 1)
+    w_done2 = []
     if actual_xp > 0:
-        db.update_weekly_challenge_progress(user["id"], "xp_weekly", actual_xp)
+        w_done2 = db.update_weekly_challenge_progress(user["id"], "xp_weekly", actual_xp)
+    weekly_done = w_done1 + w_done2
     u_curr = db.get_user_by_id(user["id"])
     final_total_xp = u_curr["xp"] if u_curr else new_xp
     return jsonify({"ok": True, "xp_earned": actual_xp, "total_xp": final_total_xp,
                     "multiplier": mult, "streak": new_streak,
-                    "quests_done": quests_done, "badges_earned": badges_earned})
+                    "quests_done": quests_done, "weekly_done": weekly_done, "badges_earned": badges_earned})
 
 @app.route("/api/review_result", methods=["POST"])
 def review_result():

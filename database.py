@@ -895,6 +895,7 @@ def update_quest_progress(user_id, quest_type, amount=1):
     """Aktualizuje postep misji. Zwraca liste nowo ukonczonych misji [{desc, xp, icon}]."""
     today = _date.today().isoformat()
     completed_now = []
+    rewards_to_process = []
     with get_conn() as conn:
         _ensure_quests_table(conn)
         rows = conn.execute(
@@ -910,11 +911,16 @@ def update_quest_progress(user_id, quest_type, amount=1):
             )
             if newly_done:
                 completed_now.append({"desc": row["description"], "xp": row["xp_reward"], "icon": row["icon"]})
-                q_xp, q_lvl, q_actual, q_mult = add_xp(user_id, row["xp_reward"])
-                conn.execute(
-                    "INSERT INTO sessions (user_id,exercise_type,words_practiced,correct,duration_sec,xp_earned) VALUES (?,?,?,?,?,?)",
-                    (user_id, "quest_reward", 0, 0, 0, q_actual)
-                )
+                rewards_to_process.append(row["xp_reward"])
+
+    for xp_rew in rewards_to_process:
+        q_xp, q_lvl, q_actual, q_mult = add_xp(user_id, xp_rew)
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO sessions (user_id,exercise_type,words_practiced,correct,duration_sec,xp_earned) VALUES (?,?,?,?,?,?)",
+                (user_id, "quest_reward", 0, 0, 0, q_actual)
+            )
+
     return completed_now
 
 
@@ -982,6 +988,7 @@ def update_weekly_challenge_progress(user_id, quest_type, amount=1):
     """Aktualizuje postęp wyzwania tygodniowego. Zwraca listę nowo ukończonych."""
     week_key = _get_week_key()
     completed_now = []
+    rewards_to_process = []
     with get_conn() as conn:
         _ensure_weekly_table(conn)
         rows = conn.execute(
@@ -997,7 +1004,16 @@ def update_weekly_challenge_progress(user_id, quest_type, amount=1):
             )
             if newly_done:
                 completed_now.append({"desc": row["description"], "xp": row["xp_reward"], "icon": row["icon"]})
-                add_xp(user_id, row["xp_reward"])
+                rewards_to_process.append(row["xp_reward"])
+
+    for xp_rew in rewards_to_process:
+        new_total_xp, new_lvl, actual_reward, mult = add_xp(user_id, xp_rew)
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO sessions (user_id,exercise_type,words_practiced,correct,duration_sec,xp_earned) VALUES (?,?,?,?,?,?)",
+                (user_id, "weekly_challenge_reward", 0, 0, 0, actual_reward)
+            )
+
     return completed_now
 
 

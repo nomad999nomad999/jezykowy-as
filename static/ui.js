@@ -446,15 +446,22 @@ const Classify = {
       if (res && res.milestone) {
         showClassifyMilestone(res.milestone.count);
       }
+      let delayAcc = 0;
       if (res && res.quests_done && res.quests_done.length > 0) {
         res.quests_done.forEach((q, i) => {
           setTimeout(() => showQuestComplete(q), i * 1200);
         });
+        delayAcc += res.quests_done.length * 1200;
+      }
+      if (res && res.weekly_done && res.weekly_done.length > 0) {
+        res.weekly_done.forEach((w, i) => {
+          setTimeout(() => showWeeklyChallengeComplete(w), delayAcc + i * 1200);
+        });
+        delayAcc += res.weekly_done.length * 1200;
       }
       if (res && res.badges_earned && res.badges_earned.length > 0) {
-        const delay = (res.quests_done ? res.quests_done.length : 0) * 1200;
         res.badges_earned.forEach((b, i) => {
-          setTimeout(() => showBadgeEarned(b), delay + i * 1500);
+          setTimeout(() => showBadgeEarned(b), delayAcc + i * 1500);
         });
       }
     }).catch(e => console.error("Classify error:", e));
@@ -972,6 +979,22 @@ function showBadgeEarned(badge) {
   setTimeout(() => { el.classList.remove('bep-show'); setTimeout(() => el.remove(), 500); }, 5000);
 }
 
+function showWeeklyChallengeComplete(w) {
+  const el = document.createElement('div');
+  el.className = 'weekly-complete-popup';
+  el.innerHTML = `
+    <div class="wcp-icon">${w.icon || '🏅'}</div>
+    <div class="wcp-body">
+      <div class="wcp-title">Wyzwanie Tygodnia Ukończone! 🌟</div>
+      <div class="wcp-desc">${w.desc || w.description}</div>
+      <div class="wcp-xp">+${w.xp || w.xp_reward} XP</div>
+    </div>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.classList.add('wcp-show'), 10);
+  setTimeout(() => { el.classList.remove('wcp-show'); setTimeout(() => el.remove(), 400); }, 4000);
+}
+
+window.showWeeklyChallengeComplete = showWeeklyChallengeComplete;
 window.showClassifyMilestone = showClassifyMilestone;
 window.toggleMilestoneLadder = toggleMilestoneLadder;
 window.closeClassifyMilestoneModal = closeClassifyMilestoneModal;

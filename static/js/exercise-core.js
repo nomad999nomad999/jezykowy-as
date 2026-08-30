@@ -57,7 +57,25 @@ const Exercise = {
       const sessionPayload = { type: this.type, words: this.total, correct: this.score, score: this.score, duration: dur };
       if (this.xpEarned > 0) sessionPayload.xp_earned = this.xpEarned;
       const res = await API.post('/api/session', sessionPayload);
-      if (res.xp_earned) XP.show(res.xp_earned);
+      if (res && res.xp_earned) XP.show(res.xp_earned);
+      let delayAcc = 0;
+      if (res && res.quests_done && res.quests_done.length > 0) {
+        res.quests_done.forEach((q, i) => {
+          setTimeout(() => showQuestComplete(q), i * 1200);
+        });
+        delayAcc += res.quests_done.length * 1200;
+      }
+      if (res && res.weekly_done && res.weekly_done.length > 0) {
+        res.weekly_done.forEach((w, i) => {
+          setTimeout(() => showWeeklyChallengeComplete(w), delayAcc + i * 1200);
+        });
+        delayAcc += res.weekly_done.length * 1200;
+      }
+      if (res && res.badges_earned && res.badges_earned.length > 0) {
+        res.badges_earned.forEach((b, i) => {
+          setTimeout(() => showBadgeEarned(b), delayAcc + i * 1500);
+        });
+      }
     }
     if (document.getElementById('page-home').classList.contains('active')) {
       Home.load();

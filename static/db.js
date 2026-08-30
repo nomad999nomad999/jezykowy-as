@@ -816,6 +816,15 @@ const DB = {
       if (newlyDone) {
         completedNow.push({ desc: q.description, xp: q.xp_reward, icon: q.icon });
         await this.addUserXp(userId, q.xp_reward);
+        await this.db.sessions.add({
+          user_id: userId,
+          session_date: new Date().toISOString(),
+          exercise_type: 'weekly_challenge_reward',
+          words_practiced: 0,
+          correct: 0,
+          duration_sec: 0,
+          xp_earned: q.xp_reward
+        });
       }
     }
     return completedNow;
@@ -864,6 +873,15 @@ const DB = {
       if (newlyDone) {
         completedNow.push({ desc: q.description, xp: q.xp_reward, icon: q.icon });
         await this.addUserXp(userId, q.xp_reward);
+        await this.db.sessions.add({
+          user_id: userId,
+          session_date: new Date().toISOString(),
+          exercise_type: 'quest_reward',
+          words_practiced: 0,
+          correct: 0,
+          duration_sec: 0,
+          xp_earned: q.xp_reward
+        });
       }
     }
 
@@ -1508,8 +1526,9 @@ const DB = {
         const finalXp = uFinal ? uFinal.xp : resXp.xp;
 
         // Aktualizuj wyzwania tygodniowe
-        await this.updateWeeklyChallengeProgress(userId, 'classify_weekly', 1);
-        await this.updateWeeklyChallengeProgress(userId, 'xp_weekly', 2);
+        const wDone1 = await this.updateWeeklyChallengeProgress(userId, 'classify_weekly', 1);
+        const wDone2 = await this.updateWeeklyChallengeProgress(userId, 'xp_weekly', 2);
+        const weeklyDone = [...wDone1, ...wDone2];
 
         const countClassified = await this.db.words.where({ user_id: userId }).count();
         let milestone = null;
@@ -1523,6 +1542,7 @@ const DB = {
           total_xp: finalXp,
           milestone,
           quests_done: qDone.map(q => ({ icon: q.icon, desc: q.desc, xp: q.xp })),
+          weekly_done: weeklyDone,
           badges_earned: bEarned
         };
       }
@@ -1714,10 +1734,12 @@ const DB = {
         const finalXp = uFinal ? uFinal.xp : resXp.xp;
 
         // Aktualizuj wyzwania tygodniowe
-        await this.updateWeeklyChallengeProgress(userId, 'session_weekly', 1);
+        const wDone1 = await this.updateWeeklyChallengeProgress(userId, 'session_weekly', 1);
+        let wDone2 = [];
         if (xpEarned > 0) {
-          await this.updateWeeklyChallengeProgress(userId, 'xp_weekly', xpEarned);
+          wDone2 = await this.updateWeeklyChallengeProgress(userId, 'xp_weekly', xpEarned);
         }
+        const weeklyDone = [...wDone1, ...wDone2];
 
         return {
           ok: true,
@@ -1725,6 +1747,7 @@ const DB = {
           total_xp: finalXp,
           streak: streak.current_streak,
           quests_done: qDone.map(q => ({ icon: q.icon, desc: q.desc, xp: q.xp })),
+          weekly_done: weeklyDone,
           badges_earned: bEarned
         };
       }
@@ -2234,18 +2257,48 @@ const DB = {
           ],
           primitive_human: [
             {
-              title: "Göbekli Tepe: Prehistoric Stone Architecture",
-              fact: "Over 11,500 years ago, hunter-gatherers in Göbekli Tepe built 16-ton carved stone pillars before the invention of farming. Archaeologists **discovered** that prehistoric communities **developed** complex social organization during the Ice Age. These early humans shared tools and **created** monumental stone circles.",
-              fact_pl: "Ponad 11 500 lat temu zbieracze-łowcy w Göbekli Tepe wznieśli 16-tonowe rzeźbione kamienne filary jeszcze przed wynalezieniem rolnictwa. Archeolodzy odkryli, że prehistoryczne społeczności wykształciły złożoną organizację społeczną.",
+              title: "Persistence Hunting & Sweating Adaptation",
+              fact: "Prehistoric humans evolved millions of sweat glands across hairless skin, allowing them to regulate body temperature while running long distances under intense heat. Early hunters **utilized** this evolutionary endurance to **track** fast antelopes until the animals collapsed from heatstroke, securing calorie-rich meat that **fueled** brain growth.",
+              fact_pl: "Prehistoryczni ludzie wykształcili miliony gruczołów potowych na bezwłosej skórze, co pozwalało im regulować temperaturę ciała podczas biegu na długich dystansach w upale. Pierwsi łowcy wykorzystywali tę ewolucyjną wytrzymałość, by ścigać szybkie antylopy, aż zwierzęta padały z udaru cieplnego, co dostarczało mięsa zasilającego rozwój mózgu.",
               used_words: [
-                {word:"discovered",translation:"odkryli",context:"archaeologists discovered"},
-                {word:"developed",translation:"rozwijali",context:"developed social organization"},
-                {word:"created",translation:"stworzyli",context:"created stone circles"}
+                {word:"utilized",translation:"wykorzystywali",context:"hunters utilized endurance"},
+                {word:"track",translation:"tropić / ścigać",context:"track fast antelopes"},
+                {word:"fueled",translation:"napędzało / zasilło",context:"fueled brain growth"}
               ],
               questions: [
-                {statement:"Göbekli Tepe pillars weigh up to 16 tons.",statement_pl:"Filary w Göbekli Tepe ważą do 16 ton.",answer:true,explanation:"Tekst mówi o 16-tonowych rzeźbionych kamieniach."},
-                {statement:"Göbekli Tepe was built by 21st century modern computer programmers.",statement_pl:"Göbekli Tepe wznieśli XXI-wieczni programiści komputerowi.",answer:false,explanation:"Tekst mówi o zbieraczach-łowcach sprzed 11 500 lat."},
-                {statement:"The site predates the invention of farming.",statement_pl:"Stanowisko powstało przed wynalezieniem rolnictwa.",answer:true,explanation:"Tekst wyraźnie to stwierdza."}
+                {statement:"Human sweating enables body temperature regulation during long runs.",statement_pl:"Ludzkie pocenie umożliwia regulację temperatury ciała podczas długich biegów.",answer:true,explanation:"Tekst wyjaśnia rolę gruczołów potowych w uwalnianiu ciepła."},
+                {statement:"Prehistoric humans hunted prey using modern sports cars.",statement_pl:"Prehistoryczni ludzie polowali na zwierzynę za pomocą nowoczesnych samochodów sportowych.",answer:false,explanation:"Polowano pieszo za pomocą biegu długodystansowego i tropienia."},
+                {statement:"Calorie-rich meat supported brain growth in hominins.",statement_pl:"Wysokoenergetyczne mięso wspierało rozwój mózgu u hominidów.",answer:true,explanation:"Tekst potwierdza wpływ pożywnego mięsa na ewolucję mózgu."}
+              ]
+            },
+            {
+              title: "Mastery of Fire & Brain Evolution",
+              fact: "Controlling fire over 1 million years ago radically transformed human evolution by enabling hominins to **cook** raw meat and roots. Cooking softened tough food, releasing dense calories that allowed human brains to **expand** rapidly while shrinking digestive tracts. Evening campfires also encouraged humans to **develop** language, storytelling, and social bonding.",
+              fact_pl: "Opanowanie ognia ponad milion lat temu radykalnie zmieniło ewolucję człowieka, umożliwiając obróbkę cieplną surowego mięsa i bulw. Gotowanie zmiękczało pożywienie i uwalniało bogate kalorie, co pozwoliło ludzkim mózgom gwałtownie rosnąć przy jednoczesnym zmniejszeniu przewodu pokarmowego.",
+              used_words: [
+                {word:"cook",translation:"gotować / piec",context:"cook raw meat"},
+                {word:"expand",translation:"rozwijać się / powiększać",context:"allowed brains to expand"},
+                {word:"develop",translation:"rozwijać",context:"develop language"}
+              ],
+              questions: [
+                {statement:"Cooking food allowed human brains to expand rapidly.",statement_pl:"Obróbka cieplna pożywienia pozwoliła ludzkim mózgom gwałtownie się rozwijać.",answer:true,explanation:"Tekst potwierdza powiązanie gotowania z ewolucją mózgu."},
+                {statement:"Fire mastery prevented humans from making any tools.",statement_pl:"Opanowanie ognia uniemożliwiło ludziom tworzenie narzędzi.",answer:false,explanation:"Ogień przyspieszył rozwój społeczny, językowy i technologiczny."},
+                {statement:"Campfires helped early humans build social cooperation.",statement_pl:"Ogniska pomagały pierwszym ludziom budować współpracę społeczną.",answer:true,explanation:"Gromadzenie się przy ogniu sprzyjało rozwój języka i więzi."}
+              ]
+            },
+            {
+              title: "Ice Age Survival & Bone Sewing Needles",
+              fact: "To survive severe Ice Age conditions over 40,000 years ago, early humans invented eyed needles carved from animal bone to **sew** windproof, multi-layered fur garments and boots. Hunters also used mammoth bones and thick hides to **construct** insulated shelters that protected tribes from sub-zero blizzards, proving high problem-solving **ability**.",
+              fact_pl: "Aby przetrwać surową epokę lodowcową ponad 40 000 lat temu, pierwsi ludzie wynaleźli igły z kości zwierząt do szycia wiatroszczelnej, wielowarstwowej odzieży futrzanej i butów. Łowcy używali też kości mamutów i grubych skór do budowy schronień chroniących przed zamieciami śnieżnymi.",
+              used_words: [
+                {word:"sew",translation:"szyć",context:"sew fur garments"},
+                {word:"construct",translation:"konstruować",context:"construct insulated shelters"},
+                {word:"ability",translation:"umiejętność / zdolność",context:"problem-solving ability"}
+              ],
+              questions: [
+                {statement:"Eyed bone needles allowed Ice Age humans to sew warm clothes.",statement_pl:"Kościane igły z oczkiem pozwalały ludziom epoki lodowcowej szyć ciepłą odzież.",answer:true,explanation:"Tekst wspomina o kościanych igłach do szycia futrzanych ubrań."},
+                {statement:"Ice Age humans wore light cotton t-shirts in sub-zero blizzards.",statement_pl:"Ludzie epoki lodowcowej nosili lekkie bawełniane koszulki podczas mrozów.",answer:false,explanation:"Noszono wielowarstwową odzież futrzaną i buty."},
+                {statement:"Mammoth bones were used to build insulated shelters.",statement_pl:"Kości mamutów wykorzystywano do budowy schronień.",answer:true,explanation:"Tekst potwierdza budowę schronień z kości mamutów i skór."}
               ]
             }
           ],

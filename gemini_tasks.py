@@ -285,6 +285,20 @@ def generate_daily_fact(category_en: str, category_pl: str, user_words: list, se
     if seen_topics and seen_topics.strip():
         seen_instruction = f"\nDO NOT repeat or generate facts about these previously covered topics: {seen_topics}. Choose a completely DIFFERENT, novel topic within '{category_en}'!"
 
+    category_special = ""
+    if "Primitive" in category_en or "człowiek pierwotny" in category_pl.lower():
+        category_special = """
+CRITICAL SPECIAL REQUIREMENT FOR "Primitive Humans":
+- ABSOLUTELY DO NOT focus on dry archaeological discovery dates (e.g. NEVER write "discovered on November 24, 1974 by paleoanthropologist X", fossil catalog numbers, or museum excavation history).
+- FOCUS 100% ON EXCITING REAL-WORLD SURVIVAL, HUMAN INTELLIGENCE, ADAPTATIONS & EVOLUTION:
+  1. SURVIVAL IN NATURE & HARDSHIPS: How early humans coped with Ice Age blizzards, sub-zero tundra, dangerous predators, megafauna, droughts, and wilderness.
+  2. HUNTING STRATEGIES, TOOLS & WEAPONS: Persistence hunting (endurance running, sweating mechanism, tracking prey to heat exhaustion), spear throwers (atlatl), flint knapping, resin glue, compound tools, fishing traps, bow & arrow, mammoth hunting tactics.
+  3. FIRE & BRAIN EVOLUTION: Control of fire, cooking raw meat and roots releasing high nutrients that fueled brain growth while shrinking digestive organs, campfire social bonding.
+  4. NATURAL SELECTION & PHYSICAL ADAPTATIONS: Loss of body hair for sweating efficiency, bipedal endurance walking, opposable thumbs and hand dexterity, jaw structure changes, immunity to prehistoric pathogens.
+  5. INTELLIGENCE & SOCIAL INNOVATION: Abstract thinking, cave painting with ochre pigments, medicinal herb use, healing broken bones (showing empathy/care), group cooperation, storytelling.
+  6. GLOBAL MIGRATIONS: Crossing ocean straits on rafts (populating Sunda/Sahul/Australia 50,000+ years ago), adapting to cold Siberia and Beringia.
+"""
+
     prompt = f"""You are an expert science communicator and English teacher.
 
 STRICT TOPIC & CONCRETENESS REQUIREMENT:
@@ -295,6 +309,7 @@ STRICT TOPIC & CONCRETENESS REQUIREMENT:
    - MUST include SPECIFIC CONCRETE DATA (exact numbers, percentages, dollar/euro/złoty values, years/dates, counts, or technical specs).
    - For "Polish Business & Economy": Focus on real Polish giants, unicorns, and exports with real numbers! Examples: InPost (24,000+ Paczkomaty parcel lockers in UK/France), CD Projekt Red ($3.5B+ Witcher & Cyberpunk 2077 sales), Allegro (e-commerce marketplace), Orlen (refineries & energy), Solaris Bus (23,000+ electric buses in 20+ EU cities), Wilk Elektronik / GoodRAM (memory modules made in Łaziska Górne), DocPlanner / ZnanyLekarz (doctor booking platform), ElevenLabs (AI voice tech), Techland (Dying Light games), Żabka (autonomous stores), Maspex.
    - For other categories: Name specific species, discovery years, chemical formulas, space telescopes, physical laws, or historical dates!
+{category_special}
 
 User's vocabulary list to practice: {words_str}
 Instructions: Pick 2-4 target words from the list above that naturally fit into this specific fact about "{category_en}". If a word does not fit, skip it and pick words that DO fit. Mark every used target word with **double asterisks** like **word**.
@@ -337,17 +352,17 @@ Rules:
 
     fallback_topics = {
         "Primitive Humans & Archaeology": {
-            "title": f"Göbekli Tepe: Prehistoric Stone Architecture",
-            "fact": f"Over 11,500 years ago, hunter-gatherers at Göbekli Tepe constructed massive 16-ton carved stone pillars before the invention of agriculture. Archaeologists **{w1['word']}** evidence showing prehistoric communities possessed complex social structures. These early humans shared toolmaking techniques to **{w2['word']}** survival strategies during the Ice Age.",
-            "fact_pl": f"Ponad 11 500 lat temu zbieracze-łowcy w Göbekli Tepe wznieśli ogromne 16-tonowe rzeźbione kamienne filary jeszcze przed wynalezieniem rolnictwa. Archeolodzy odkryli dowody pokazujące, że prehistoryczne społeczności posiadały złożone struktury społeczne. Ci pierwsi ludzie dzielili się technikami narzędziowymi, aby rozwijać strategie przetrwania w epoce lodowcowej.",
+            "title": "Persistence Hunting & Sweating Adaptation",
+            "fact": f"Prehistoric humans evolved millions of sweat glands across hairless skin, allowing them to regulate body temperature while running long distances in African heat. Early hunters used this evolutionary endurance to **{w1['word']}** persistence hunting tactics, chasing fast prey like antelopes until the animals collapsed from heat stroke. This steady calorie supply helped hominin bands **{w2['word']}** larger brains and survive harsh environments.",
+            "fact_pl": f"Prehistoryczni ludzie wykształcili miliony gruczołów potowych na bezwłosej skórze, co pozwalało im regulować temperaturę ciała podczas biegu na długich dystansach w afrykańskim upale. Pierwsi łowcy wykorzystywali tę ewolucyjną wytrzymałość, aby rozwijać taktyki polowania uporczywego, ścigając szybkie antylopy, aż zwierzęta padały z udaru cieplnego. Ta stała dostawa kalorii pomogła grupom hominidów rozwijać większe mózgi i przetrwać w trudnych warunkach.",
             "used_words": [
-                {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"archaeologists {w1['word']}"},
-                {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"strategies to {w2['word']}"}
+                {"word": w1["word"], "translation": w1.get("translation", "?"), "context": f"hunters used tactics to {w1['word']}"},
+                {"word": w2["word"], "translation": w2.get("translation", "?"), "context": f"helped bands {w2['word']} brains"}
             ],
             "questions": [
-                {"statement": "Göbekli Tepe stone pillars were built over 11,500 years ago.", "statement_pl": "Kamienne filary w Göbekli Tepe wybudowano ponad 11 500 lat temu.", "answer": True, "explanation": "Tekst podaje dokładnie tę datę."},
-                {"statement": "Göbekli Tepe was built by 21st-century modern factory workers.", "statement_pl": "Göbekli Tepe wybudowali XXI-wieczni robotnicy fabryczni.", "answer": False, "explanation": "Strukturę stworzyli prehistoryczni zbieracze-łowcy."},
-                {"statement": "Stone pillars at the site weigh up to 16 tons.", "statement_pl": "Kamienne filary na stanowisku ważą do 16 ton.", "answer": True, "explanation": "Tekst wspomina o 16-tonowych filarach."}
+                {"statement": "Human sweating allows temperature regulation during long-distance running.", "statement_pl": "Ludzkie pocenie się umożliwia regulację temperatury podczas biegu długodystansowego.", "answer": True, "explanation": "Tekst wyjaśnia rolę gruczołów potowych w uwalnianiu ciepła."},
+                {"statement": "Prehistoric humans hunted antelopes by flying in airplanes.", "statement_pl": "Prehistoryczni ludzie polowali na antylopy, latając samolotami.", "answer": False, "explanation": "Polowanie odbywało się pieszo poprzez bieg długodystansowy."},
+                {"statement": "High-calorie meat helped fuel prehistoric brain expansion.", "statement_pl": "Wysokoenergetyczne mięso pomogło zasilać rozwój prehistorycznego mózgu.", "answer": True, "explanation": "Dostawa kalorii wspierała ewolucję większych mózgów."}
             ]
         },
         "Polish Business & Economy": {
