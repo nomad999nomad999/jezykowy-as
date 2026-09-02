@@ -16,10 +16,38 @@ _CONTEXTS = [
     "in a business meeting"
 ]
 
+_SENTENCE_CACHE = {}
+
+_CURATED_SENTENCES = {
+    "attitude": ("A positive attitude helps you handle difficult situations.", "Pozytywne nastawienie pomaga radzić sobie w trudnych sytuacjach."),
+    "achieve": ("She worked hard to achieve her career goals.", "Ciężko pracowała, aby osiągnąć swoje cele zawodowe."),
+    "decision": ("Taking time to think leads to a better decision.", "Danie sobie czasu na przemyślenie prowadzi do lepszej decyzji."),
+    "challenge": ("Facing a new challenge helps us grow and learn.", "Stawianie czoła nowym wyzwaniom pomaga nam rosnąć i uczyć się."),
+    "environment": ("We must protect the natural environment for future generations.", "Musimy chronić środowisko naturalne dla przyszłych pokoleń."),
+    "opportunity": ("This project is a great opportunity to gain experience.", "Ten projekt to świetna okazja na zdobycie doświadczenia."),
+    "effort": ("Great results require continuous effort and patience.", "Wspaniałe wyniki wymagają ciągłego wysiłku i cierpliwości."),
+    "process": ("Understanding the whole process makes the work easier.", "Zrozumienie całego procesu ułatwia pracę."),
+    "ability": ("Regular practice improves your natural ability over time.", "Regularna praktyka z czasem poprawia twoje naturalne zdolności."),
+    "support": ("Friends always support each other in difficult times.", "Przyjaciele zawsze wspierają się nawzajem w trudnych chwilach."),
+    "improve": ("Daily practice is the best way to improve your skills.", "Codzienna praktyka to najlepszy sposób na poprawę umiejętności."),
+    "create": ("They decided to create a modern web application.", "Postanowili stworzyć nowoczesną aplikację internetową."),
+    "develop": ("He wants to develop new strategies for his business.", "On chce rozwinąć nowe strategie dla swojego biznesu."),
+    "manage": ("She knows how to manage her time effectively.", "Ona wie, jak skutecznie zarządzać swoim czasem."),
+    "provide": ("The company will provide all necessary training materials.", "Firma dostarcza wszystkie niezbędne materiały szkoleniowe."),
+    "require": ("This task will require focus and attention to detail.", "To zadanie będzie wymagać skupienia i dbałości o szczegóły."),
+    "value": ("We really value your feedback and honest opinion.", "Naprawdę cenimy twoją opinię i szczerą odpowiedź."),
+    "community": ("The local community organized a successful weekend event.", "Lokalna społeczność zorganizowała udane wydarzenie weekendowe."),
+    "impact": ("Her speech had a huge positive impact on the audience.", "Jej przemówienie miało ogromny, pozytywny wpływ na publiczność."),
+    "solution": ("We are working hard to find the best possible solution.", "Ciężko pracujemy, aby znaleźć najlepsze możliwe rozwiązanie."),
+    "experience": ("Travel brings valuable experience and broader perspectives.", "Podróże przynoszą cenne doświadczenie i szersze perspektywy."),
+    "growth": ("Personal growth comes from trying new things.", "Rozwój osobisty pochodzi ze próbowania nowych rzeczy."),
+    "purpose": ("Clear goals give a sense of direction and purpose.", "Jasne cele dają poczucie kierunku i celu.")
+}
+
 def _ask(prompt: str, max_retries: int = 2) -> str:
     """Wysyła prompt do Gemini z obsługą rate limit (429) i przełączaniem modeli."""
     import time
-    models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"]
+    models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"]
     for model_name in models:
         for attempt in range(max_retries):
             try:
@@ -31,9 +59,10 @@ def _ask(prompt: str, max_retries: int = 2) -> str:
                 is_rate_limit = "429" in err_str or "quota" in err_str.lower() or "rate" in err_str.lower()
                 print(f"Gemini {model_name} attempt {attempt+1} failed: {e}")
                 if is_rate_limit:
-                    break
-                if attempt < max_retries - 1:
-                    time.sleep(1.0)
+                    time.sleep(1.2 * (attempt + 1))
+                else:
+                    if attempt < max_retries - 1:
+                        time.sleep(0.8)
         time.sleep(0.3)
     return ""
 
@@ -79,15 +108,25 @@ def _smart_fallback_sentence(word: str, translation: str) -> dict:
             "tip": f"{word} = {clean_tr}"
         }
 
-    # Universal fallbacks for any part of speech
-    fallbacks = [
-        (f"The word '{word}' means '{clean_tr}' in English.", f"Słowo '{word}' oznacza '{clean_tr}' po angielsku."),
-        (f"We can use the word '{word}' in everyday conversation.", f"Możemy używać słowa '{word}' w codziennych rozmowach."),
-        (f"Do you know how to use '{word}' in a sentence?", f"Czy wiesz, jak użyć słowa '{word}' w zdaniu?"),
-        (f"He asked about the meaning of '{word}'.", f"Zapytał o znaczenie słowa '{word}'."),
-        (f"She explained what '{word}' means with a good example.", f"Wyjaśniła, co oznacza '{word}' na dobrym przykładzie.")
+    if w_lower in _CURATED_SENTENCES:
+        sent, sent_pl = _CURATED_SENTENCES[w_lower]
+        return {
+            "sentence": sent,
+            "sentence_pl": sent_pl,
+            "tip": f"{word} = {clean_tr}"
+        }
+
+    # Contextual situational frames (real English contexts, NO meta-sentences!)
+    frames = [
+        (f"Her professional approach to {word} made a great impression on the team.", f"Jej profesjonalne podejście do kwestii ({clean_tr}) zrobiło świetne wrażenie na zespole."),
+        (f"They discussed the impact of {word} during their morning meeting.", f"Omówili wpływ zagadnienia ({clean_tr}) podczas porannego spotkania."),
+        (f"It is important to pay attention to {word} in daily life.", f"Ważne jest, aby zwracać uwagę na ({clean_tr}) w codziennym życiu."),
+        (f"Having a clear understanding of {word} leads to better results.", f"Jasne zrozumienie słowa/zagadnienia ({clean_tr}) prowadzi do lepszych wyników."),
+        (f"She demonstrated a great example of {word} during the presentation.", f"Zaprezentowała świetny przykład ({clean_tr}) podczas prezentacji."),
+        (f"We should focus on {word} to achieve the best outcome.", f"Powinniśmy skupić się na ({clean_tr}), aby osiągnąć najlepszy rezultat.")
     ]
-    sent, sent_pl = random.choice(fallbacks)
+    hash_val = sum(ord(c) for c in word)
+    sent, sent_pl = frames[hash_val % len(frames)]
     return {
         "sentence": sent,
         "sentence_pl": sent_pl,
@@ -97,6 +136,10 @@ def _smart_fallback_sentence(word: str, translation: str) -> dict:
 
 def generate_example_sentence(word: str, translation: str) -> dict:
     """Generuje przykładowe zdanie – za każdym razem inny kontekst."""
+    cache_key = f"{word.lower().strip()}:{translation.lower().strip()}"
+    if cache_key in _SENTENCE_CACHE:
+        return _SENTENCE_CACHE[cache_key]
+
     ctx = random.choice(_CONTEXTS)
     style = random.choice([
         "Use a natural conversational tone.",
@@ -122,8 +165,11 @@ Example: {{"sentence": "She decided to investigate the mysterious noise in the a
     raw = _ask(prompt)
     parsed = _parse_json(raw)
     if parsed and isinstance(parsed, dict) and "sentence" in parsed and "sentence_pl" in parsed:
+        _SENTENCE_CACHE[cache_key] = parsed
         return parsed
-    return _smart_fallback_sentence(word, translation)
+    fallback = _smart_fallback_sentence(word, translation)
+    _SENTENCE_CACHE[cache_key] = fallback
+    return fallback
 
 
 def generate_fill_blank(word: str, translation: str) -> dict:

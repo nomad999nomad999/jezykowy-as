@@ -7,7 +7,82 @@ const SUPABASE_URL = "https://zsrcngqalsrmrvorozyd.supabase.co";
 const SUPABASE_KEY = "sb_publishable_8hx2csT7Vz9Vv6bHFhH2NQ_iFOlFv7E";
 
 // Pomocnicze funkcje do bezpośredniego pobierania z API Gemini w przeglądarce
+const _CLIENT_SENTENCE_CACHE = new Map();
+
+function getSmartFallbackSentenceJS(word, translation) {
+  if (!word) return { sentence: "This is a useful sentence.", sentence_pl: "To jest pożyteczne zdanie." };
+  const w = word.trim();
+  const wLower = w.toLowerCase();
+  const cleanTr = translation ? translation.split(";")[0].split(",")[0].trim() : w;
+
+  const DICT = {
+    "attitude": { sentence: "A positive attitude helps you handle difficult situations.", sentence_pl: "Pozytywne nastawienie pomaga radzić sobie w trudnych sytuacjach." },
+    "achieve": { sentence: "She worked hard to achieve her career goals.", sentence_pl: "Ciężko pracowała, aby osiągnąć swoje cele zawodowe." },
+    "decision": { sentence: "Taking time to think leads to a better decision.", sentence_pl: "Danie sobie czasu na przemyślenie prowadzi do lepszej decyzji." },
+    "challenge": { sentence: "Facing a new challenge helps us grow and learn.", sentence_pl: "Stawianie czoła nowym wyzwaniom pomaga nam rosnąć i uczyć się." },
+    "environment": { sentence: "We must protect the natural environment for future generations.", sentence_pl: "Musimy chronić środowisko naturalne dla przyszłych pokoleń." },
+    "opportunity": { sentence: "This project is a great opportunity to gain experience.", sentence_pl: "Ten projekt to świetna okazja na zdobycie doświadczenia." },
+    "effort": { sentence: "Great results require continuous effort and patience.", sentence_pl: "Wspaniałe wyniki wymagają ciągłego wysiłku i cierpliwości." },
+    "process": { sentence: "Understanding the whole process makes the work easier.", sentence_pl: "Zrozumienie całego procesu ułatwia pracę." },
+    "ability": { sentence: "Regular practice improves your natural ability over time.", sentence_pl: "Regularna praktyka z czasem poprawia twoje naturalne zdolności." },
+    "support": { sentence: "Friends always support each other in difficult times.", sentence_pl: "Przyjaciele zawsze wspierają się nawzajem w trudnych chwilach." },
+    "improve": { sentence: "Daily practice is the best way to improve your skills.", sentence_pl: "Codzienna praktyka to najlepszy sposób na poprawę umiejętności." },
+    "create": { sentence: "They decided to create a modern web application.", sentence_pl: "Postanowili stworzyć nowoczesną aplikację internetową." },
+    "develop": { sentence: "He wants to develop new strategies for his business.", sentence_pl: "On chce rozwinąć nowe strategie dla swojego biznesu." },
+    "manage": { sentence: "She knows how to manage her time effectively.", sentence_pl: "Ona wie, jak skutecznie zarządzać swoim czasem." },
+    "provide": { sentence: "The company will provide all necessary training materials.", sentence_pl: "Firma dostarcza wszystkie niezbędne materiały szkoleniowe." },
+    "require": { sentence: "This task will require focus and attention to detail.", sentence_pl: "To zadanie będzie wymagać skupienia i dbałości o szczegóły." },
+    "value": { sentence: "We really value your feedback and honest opinion.", sentence_pl: "Naprawdę cenimy twoją opinię i szczerą odpowiedź." },
+    "community": { sentence: "The local community organized a successful weekend event.", sentence_pl: "Lokalna społeczność zorganizowała udane wydarzenie weekendowe." },
+    "impact": { sentence: "Her speech had a huge positive impact on the audience.", sentence_pl: "Jej przemówienie miało ogromny, pozytywny wpływ na publiczność." },
+    "solution": { sentence: "We are working hard to find the best possible solution.", sentence_pl: "Ciężko pracujemy, aby znaleźć najlepsze możliwe rozwiązanie." },
+    "experience": { sentence: "Travel brings valuable experience and broader perspectives.", sentence_pl: "Podróże przynoszą cenne doświadczenie i szersze perspektywy." },
+    "growth": { sentence: "Personal growth comes from trying new things.", sentence_pl: "Rozwój osobisty pochodzi ze próbowania nowych rzeczy." },
+    "purpose": { sentence: "Clear goals give a sense of direction and purpose.", sentence_pl: "Jasne cele dają poczucie kierunku i celu." }
+  };
+
+  if (DICT[wLower]) {
+    return { ...DICT[wLower], tip: `${w} = ${cleanTr}` };
+  }
+
+  const hash = Array.from(w).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const frames = [
+    {
+      sentence: `Her professional approach to ${w} made a great impression on the team.`,
+      sentence_pl: `Jej profesjonalne podejście do kwestii (${cleanTr}) zrobiło świetne wrażenie na zespole.`
+    },
+    {
+      sentence: `They discussed the impact of ${w} during their morning meeting.`,
+      sentence_pl: `Omówili wpływ zagadnienia (${cleanTr}) podczas porannego spotkania.`
+    },
+    {
+      sentence: `It is important to pay attention to ${w} in daily life.`,
+      sentence_pl: `Ważne jest, aby zwracać uwagę na (${cleanTr}) w codziennym życiu.`
+    },
+    {
+      sentence: `Having a clear understanding of ${w} leads to better results.`,
+      sentence_pl: `Jasne zrozumienie słowa/zagadnienia (${cleanTr}) prowadzi do lepszych wyników.`
+    },
+    {
+      sentence: `She demonstrated a great example of ${w} during the presentation.`,
+      sentence_pl: `Zaprezentowała świetny przykład (${cleanTr}) podczas prezentacji.`
+    },
+    {
+      sentence: `We should focus on ${w} to achieve the best outcome.`,
+      sentence_pl: `Powinniśmy skupić się na (${cleanTr}), aby osiągnąć najlepszy rezultat.`
+    }
+  ];
+
+  const picked = frames[hash % frames.length];
+  return { ...picked, tip: `${w} = ${cleanTr}` };
+}
+
 async function fetchDirectGeminiSentence(word, translation, apiKey) {
+  const cacheKey = `${(word||'').toLowerCase().trim()}:${(translation||'').toLowerCase().trim()}`;
+  if (_CLIENT_SENTENCE_CACHE.has(cacheKey)) {
+    return _CLIENT_SENTENCE_CACHE.get(cacheKey);
+  }
+
   const contexts = [
     "daily life", "business meeting", "traveling abroad", "casual conversation",
     "reading a book", "watching a movie", "shopping at a store", "asking for directions"
@@ -32,7 +107,18 @@ Respond ONLY with valid JSON, no markdown, no extra text.
 Example: {"sentence": "She had no doubt about her decision.", "sentence_pl": "Nie miała wątpliwości co do swojej decyzji.", "tip": "Doubt = wątpliwość, jak 'dubbing' – coś niepewnego"}`;
 
   // Try models in order, with retry on 429 (rate limit)
-  const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+  let lastError = null;
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
   let lastError = null;
 
   for (const model of models) {
@@ -67,6 +153,7 @@ Example: {"sentence": "She had no doubt about her decision.", "sentence_pl": "Ni
         if (s !== -1 && e2 !== -1) raw = raw.substring(s, e2 + 1);
         const parsed = JSON.parse(raw);
         if (!parsed.sentence) throw new Error("Missing sentence in response");
+        _CLIENT_SENTENCE_CACHE.set(cacheKey, parsed);
         return parsed;
 
       } catch (e) {
@@ -2050,17 +2137,8 @@ const DB = {
           }
         }
         
-        // Zróżnicowane szablony offline
-        const templates = [
-          { sentence: `I want to understand the meaning of the word "${word}".`, sentence_pl: `Chcę zrozumieć znaczenie słowa "${translation}".` },
-          { sentence: `Can you repeat the word "${word}" one more time?`, sentence_pl: `Czy możesz powtórzyć słowo "${translation}" jeszcze raz?` },
-          { sentence: `This is a very important sentence with the word "${word}".`, sentence_pl: `To jest bardzo ważne zdanie ze słowem "${translation}".` },
-          { sentence: `She tried to write "${word}" on the whiteboard.`, sentence_pl: `Próbowała napisać "${translation}" na tablicy.` },
-          { sentence: `He did not know how to translate "${word}" yesterday.`, sentence_pl: `Wczoraj nie wiedział, jak przetłumaczyć "${translation}".` },
-          { sentence: `Please show me an example of how to use "${word}".`, sentence_pl: `Proszę pokaż mi przykład, jak użyć słowa "${translation}".` }
-        ];
-        const hash = Array.from(word || "").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        return templates[hash % templates.length];
+        // Zróżnicowane szablony offline (Smart contextual generator)
+        return getSmartFallbackSentenceJS(word, translation);
       }
 
       // 34. GET /api/gemini/fill_blank (Spróbuj pobrać z serwera, w razie braku połączenia użyj offline fallback)

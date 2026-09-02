@@ -139,19 +139,45 @@ Object.assign(Exercise, {
       
       if (includeSentences) {
         const sentEl = document.getElementById('hfSentence');
-        if (sentEl) sentEl.innerHTML = `<span style="color:var(--text3)">⏳ Generowanie zdania PL $\\rightarrow$ EN...</span>`;
-        
-        try {
-          sentenceRes = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation)}`);
-          checkActive();
-          if (sentEl && sentenceRes) {
+        if (w.example_sentence && w.example_sentence_pl) {
+          sentenceRes = {
+            sentence: w.example_sentence,
+            sentence_pl: w.example_sentence_pl,
+            tip: w.example_sentence_tip || ""
+          };
+          if (sentEl) {
             sentEl.innerHTML = `
               <div style="color:var(--green);font-weight:600;margin-bottom:4px">${sentenceRes.sentence_pl}</div>
               <div style="color:var(--text1);font-size:15px"><em>${sentenceRes.sentence}</em></div>
             `;
           }
-        } catch (e) {
-          console.warn("Nie udało się pobrać zdania:", e);
+        } else {
+          if (sentEl) sentEl.innerHTML = `<span style="color:var(--text3)">⏳ Generowanie zdania PL $\\rightarrow$ EN...</span>`;
+          
+          try {
+            sentenceRes = await API.get(`/api/gemini/sentence?word=${encodeURIComponent(w.word)}&translation=${encodeURIComponent(w.translation)}`);
+            checkActive();
+            if (sentEl && sentenceRes) {
+              sentEl.innerHTML = `
+                <div style="color:var(--green);font-weight:600;margin-bottom:4px">${sentenceRes.sentence_pl}</div>
+                <div style="color:var(--text1);font-size:15px"><em>${sentenceRes.sentence}</em></div>
+              `;
+            }
+            if (sentenceRes && sentenceRes.sentence) {
+              w.example_sentence = sentenceRes.sentence;
+              w.example_sentence_pl = sentenceRes.sentence_pl;
+              w.example_sentence_tip = sentenceRes.tip || "";
+              if (w.id && typeof db !== 'undefined' && db.words) {
+                db.words.update(w.id, {
+                  example_sentence: sentenceRes.sentence,
+                  example_sentence_pl: sentenceRes.sentence_pl,
+                  example_sentence_tip: sentenceRes.tip || ""
+                }).catch(e => console.warn("Błąd zapisywania zdania w bazie:", e));
+              }
+            }
+          } catch (e) {
+            console.warn("Nie udało się pobrać zdania:", e);
+          }
         }
 
         if (sentenceRes && sentenceRes.sentence_pl) {
